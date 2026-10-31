@@ -16,6 +16,27 @@ node src/server.mjs
 
 Open http://127.0.0.1:4173. On this Mac, `start.command` also locates the bundled Codex Node runtime. The server listens on loopback only.
 
+## Live recovery agents and conversation
+
+The recovery desk supports three separate Claude clients for ATC, Pilot and Ground, alongside local policy mode. Each client has its own role prompt, credential setting and history. Put the six settings from `.env.example` in the root `.env`, using keys and model IDs available to your Anthropic account:
+
+```dotenv
+ATC_ANTHROPIC_API_KEY=your-atc-key
+ATC_ANTHROPIC_MODEL=your-model-id
+PILOT_ANTHROPIC_API_KEY=your-pilot-key
+PILOT_ANTHROPIC_MODEL=your-model-id
+GROUND_ANTHROPIC_API_KEY=your-ground-key
+GROUND_ANTHROPIC_MODEL=your-model-id
+```
+
+The configured model must support [Claude JSON outputs](https://platform.claude.com/docs/en/build-with-claude/structured-outputs). Restart the server after editing `.env`. In **Inputs → Agent execution**, select **Live Claude agents**, then **Evaluate three plans**. Live mode is the initial default when all three roles are configured; otherwise it is disabled and local policy mode is available. Opening the conversation view makes no API calls. Keys remain server-side, and legacy global provider keys are not substituted for role credentials.
+
+Use **Agent conversation** on the map to open a floating discussion panel. The geographic map remains behind it, with the existing side-panel toggles, logo, colours and gate anchors preserved. Live runs open the discussion automatically. The three speakers show actual returned assessments for the selected plan. The plan tabs change the option being discussed, and **Discussion round** replays previous rounds or follows new responses. **What this agent heard** shows previous-round preferences and, for live agents, the exact received assessment text. Enforced decisions are explained when an agent’s proposed decision conflicts with a hard check or score threshold. Decision log also receives each real message as it arrives.
+
+The first round reviews the same three plans independently. Each later round receives the other roles’ complete previous-round messages, plus its own history. The coordinator relays recorded messages; the conversation presents returned assessments rather than hidden model reasoning. Agents receive the selected airport’s operational scenario, historical trigger, candidate plans, authoritative domain checks and collision impacts. Geographic gate-node payloads are omitted from API prompts. Airport-specific chains remain part of ranking and fallback, and a stranded chained arrival prevents unanimous consensus in either execution mode.
+
+Live reviews have a three-round/nine-request limit, a 25-second per-request timeout and a 90-second overall timeout, without automatic retries. Hard checks, calculated efficiency scores, plan hashes and human-choice validation remain code-owned. Provider failures retain real partial responses and produce a labelled deterministic fallback; missing speech or acceptance is never invented. Disconnecting aborts the run and leaves no selectable incomplete result. The audit retains actual assessments, received peer messages, model identities, supplied token usage, collision impacts and sanitized failures. Automated tests mock the provider; passing them does not establish live model quality or provider-account access.
+
 ## Demonstration
 
 1. Select **Evaluate three plans**. The default historical trigger is B6 906, ORD → JFK, 23 December 2015, source CSV row 340659.
@@ -59,7 +80,7 @@ The CSV has no current gates, complete airport traffic, aircraft type, onboard f
 
 ## Independent agents and agreement
 
-The recovery desk currently uses **three separate local policy agents; it makes no LLM calls**. Each role has its own assessment function and history. Its efficiency opinions are transparent policy calculations, not model confidence, probabilities or measured performance.
+In **Local policy agents** mode, the recovery desk uses three separate deterministic agents and makes no LLM calls. **Live Claude agents** mode uses the role-specific clients described above. Each role has its own assessment function and history. Efficiency scores remain transparent policy calculations, not model confidence, probabilities or measured performance.
 
 Each turn contains exactly one structured message per role covering all three options. Turn one supplies preferences and assessments. The next turn shares peer preferences and confirms the same option hashes. An option has consensus only when all three accept its exact plan and scenario identity. The default completes in two turns (six messages). Runs stop after three turns (nine messages).
 
@@ -117,7 +138,7 @@ The old JFK schematic remains in the departure sandbox. Its original source HTML
 
 Every option has its own map payload. Switching resets the visualization clock and route/stand state to the selected option. Hard-invalid options are inspectable but cannot be replayed or chosen. A human-chosen option is explicitly marked. Replay does not advance the authoritative planning state or execute movements.
 
-The earlier departure sandbox remains at `/operations.html`. Its optional Claude/Gemini adapters and original demonstration are preserved there, with documentation in `reference/DEPARTURE-SANDBOX.md`. That legacy sandbox uses its original simplified fixture; it is not the updated workbook-compliant recovery workflow. Live-provider adapters are not connected to the new three-option recovery desk. No live LLM performance has been claimed or tested without credentials.
+The earlier departure sandbox remains at `/operations.html`. Its optional Claude/Gemini adapters and original demonstration are preserved there, with documentation in `reference/DEPARTURE-SANDBOX.md`. That legacy sandbox uses its original simplified fixture; it is not the updated workbook-compliant recovery workflow. The recovery desk has its own role-specific Claude adapter. No live LLM performance has been claimed or tested without credentials.
 
 ## Verification and layout
 
@@ -128,6 +149,8 @@ node --test test/*.test.mjs
 Tests cover domain checks, exactly three messages per turn, independent acceptance/ranking, fuel/notice boundaries, fallback, blocked selections, scenario-bound hashes, source provenance, HTTP exports, and replay boundaries. Airport tests cover all 322 coordinate records, all 9,075 historical examples, recommendations for every airport with eligible arrivals, small-airport limits, absent arrival seeds, cross-airport plan invalidation, geographic projection and runway identifier normalization.
 
 - `src/recovery.mjs`: workbook-backed scenario, three strategies, validator, role agents, ranking, fallback and human-choice validation.
+- `src/live-recovery.mjs`: independent Claude reviews, peer-message relay, bounded requests and authoritative decision enforcement.
+- `public/agent-conversation.mjs`, `public/live-recovery.css`: recorded conversation rendering and additive discussion-panel styling.
 - `src/chain.mjs`, `src/triage.mjs`: airport-scoped chain screening, serving order and urgency tiers.
 - `public/collision-triage.css`: additive collision-widget styles; the existing map and panel stylesheet is preserved.
 - `data/onward-index.json`: traceable partial onward-flight links for indexed arrivals.

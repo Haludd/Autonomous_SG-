@@ -13,6 +13,63 @@ test('API streams a committed version and exposes an audit export',async()=>{
   const current=await(await fetch(`${origin}/api/sessions/${s.id}`)).json();assert.equal(current.running,false);assert.equal(current.result.validation.valid,true);
   const audit=await(await fetch(`${origin}/api/sessions/${s.id}/export`)).json();assert.equal(audit.runs.length,1);assert.equal(audit.runs[0].scenario.stateVersion,1);
 });
+test('live recovery streams real role responses, locks mutations and exports no credentials',async()=>{
+ const roles=['ATC','PILOT','GROUND'],saved={};
+ for(const role of roles)for(const suffix of ['API_KEY','MODEL']){const name=`${role}_ANTHROPIC_${suffix}`;saved[name]=process.env[name];process.env[name]=suffix==='API_KEY'?`${role}-private`:'test-model';}
+ const nativeFetch=globalThis.fetch;let unlock;const gate=new Promise(resolve=>unlock=resolve);const keys=[];
+ globalThis.fetch=async(url,init)=>{
+  if(url!=='https://api.anthropic.com/v1/messages')return nativeFetch(url,init);
+  keys.push(init.headers['x-api-key']);await gate;
+  const payload=JSON.parse(JSON.parse(init.body).messages[0].content);
+  return new Response(JSON.stringify({stop_reason:'end_turn',usage:{input_tokens:10,output_tokens:20},content:[{type:'text',text:JSON.stringify({stateVersion:payload.stateVersion,preferredOptionId:'gate',assessments:payload.options.map(o=>({optionId:o.id,planHash:o.hash,decision:'ACCEPT',explanation:'Reviewed independently.'}))})}]}),{status:200});
+ };
+ try{
+  const cfg=await(await fetch(origin+'/api/recovery')).json();assert.equal(cfg.live.available,true);assert.ok(!JSON.stringify(cfg).includes('private'));
+  const s=await(await post('/api/recovery',{airportCode:'LAX',index:0,stress:true})).json();const response=await post(`/api/recovery/${s.id}/run`,{});
+  assert.match(response.headers.get('content-type'),/text\/event-stream/);
+  assert.equal((await post(`/api/recovery/${s.id}/compare`,{})).status,409);assert.equal((await post(`/api/recovery/${s.id}/choose`,{})).status,409);assert.equal((await post(`/api/recovery/${s.id}/run`,{})).status,409);
+  unlock();const stream=await response.text();assert.match(stream,/event: progress/);assert.match(stream,/event: result/);assert.ok(!stream.includes('private'));
+  assert.equal(keys.length,9);assert.equal(new Set(keys).size,3);
+  const current=await(await fetch(`${origin}/api/recovery/${s.id}`)).json();assert.equal(current.running,false);assert.equal(current.portfolio.mode,'live');assert.equal(current.portfolio.status,'fallback');
+  assert.ok(current.portfolio.options.every(option=>!option.consensus));
+  assert.equal(current.chain.airportCode,'LAX');assert.ok(current.portfolio.options.filter(option=>option.validation.valid).every(option=>option.chain?.groupSize===4));
+  assert.ok(current.portfolio.options.some(option=>!option.validation.valid&&option.chain===null));
+  assert.ok(Object.values(current.maps).every(map=>map.mode==='live'&&map.scenario.mapData.code==='LAX'));
+  const o=current.portfolio.options[0];assert.equal((await post(`/api/recovery/${s.id}/choose`,{optionId:o.id,planHash:o.hash,stateVersion:1})).status,200);
+  const audit=await(await fetch(`${origin}/api/recovery/${s.id}/export`)).text();assert.ok(audit.includes('test-model'));assert.ok(!audit.includes('private'));
+ }finally{unlock();globalThis.fetch=nativeFetch;for(const [key,value] of Object.entries(saved)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+});
+
+test('unconfigured live mode stays unavailable while conversation assets and local policy mode work',async()=>{
+ const roles=['ATC','PILOT','GROUND'],saved={};
+ for(const role of roles){const key=`${role}_ANTHROPIC_API_KEY`;saved[key]=process.env[key];delete process.env[key];}
+ try{
+  const config=await(await fetch(origin+'/api/recovery?airport=LAS')).json();assert.equal(config.live.available,false);
+  const session=await(await post('/api/recovery',{airportCode:'LAS'})).json();assert.equal((await post(`/api/recovery/${session.id}/run`,{})).status,400);
+  const local=await(await post(`/api/recovery/${session.id}/compare`,{})).json();assert.equal(local.portfolio.mode,'policy');
+  for(const asset of ['/agent-conversation.mjs','/live-recovery.css'])assert.equal((await fetch(origin+asset)).status,200);
+  const html=await(await fetch(origin+'/')).text();for(const id of ['execution-mode','agent-progress','view-conversation','conversation-view','stress-chain','airport-select','expand'])assert.ok(html.includes(`id="${id}"`));
+ }finally{for(const [key,value] of Object.entries(saved)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+});
+
+test('disconnecting a live stream aborts provider work and leaves no selectable partial result',async()=>{
+ const roles=['ATC','PILOT','GROUND'],saved={};
+ for(const role of roles)for(const suffix of ['API_KEY','MODEL']){const key=`${role}_ANTHROPIC_${suffix}`;saved[key]=process.env[key];process.env[key]='test-value';}
+ const nativeFetch=globalThis.fetch;let aborted=0;
+ globalThis.fetch=async(url,init)=>{
+  if(url!=='https://api.anthropic.com/v1/messages')return nativeFetch(url,init);
+  return new Promise((resolve,reject)=>{const cancel=()=>{aborted++;reject(init.signal.reason);};if(init.signal.aborted)cancel();else init.signal.addEventListener('abort',cancel,{once:true});});
+ };
+ const controller=new AbortController();
+ try{
+  const session=await(await post('/api/recovery',{})).json();
+  const response=await fetch(`${origin}/api/recovery/${session.id}/run`,{method:'POST',headers:{'content-type':'application/json'},body:'{}',signal:controller.signal});
+  const reader=response.body.getReader();assert.equal((await reader.read()).done,false);controller.abort();await reader.cancel().catch(()=>{});
+  let current;
+  for(let attempt=0;attempt<20;attempt++){current=await(await fetch(`${origin}/api/recovery/${session.id}`)).json();if(!current.running)break;}
+  assert.equal(current.running,false);assert.equal(current.portfolio,null);assert.equal(current.selection,null);assert.equal(current.audit.length,0);assert.ok(aborted>0);
+ }finally{controller.abort();globalThis.fetch=nativeFetch;for(const [key,value] of Object.entries(saved)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+});
 test('API update invalidates result and preserves the old run snapshot',async()=>{
   const s=await session();await(await post(`/api/sessions/${s.id}/run`,{})).text();
   const response=await post(`/api/sessions/${s.id}/update`,{text:'Tug 2 unavailable for 14 minutes'});assert.equal(response.status,200);

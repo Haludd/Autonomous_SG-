@@ -128,7 +128,7 @@ export function rankRecovery(options,messages){
   return options.map(o=>{
     const assessments=roles.map(role=>messages.find(m=>m.role===role)?.assessments.find(a=>a.optionId===o.id&&a.planHash===o.hash&&a.stateVersion===o.plan.stateVersion)).filter(Boolean);
     const accepted=assessments.filter(a=>a.decision==='ACCEPT').length;
-    return {...o,assessments,accepted,consensus:o.validation.valid&&stranded(o)===0&&assessments.length===3&&accepted===3,minEfficiency:Math.min(...assessments.map(a=>a.efficiency)),meanEfficiency:Math.round(assessments.reduce((n,a)=>n+a.efficiency,0)/Math.max(1,assessments.length))};
+    return {...o,assessments,accepted,consensus:o.validation.valid&&stranded(o)===0&&assessments.length===3&&accepted===3,minEfficiency:assessments.length?Math.min(...assessments.map(a=>a.efficiency)):0,meanEfficiency:Math.round(assessments.reduce((n,a)=>n+a.efficiency,0)/Math.max(1,assessments.length))};
   }).sort((a,b)=>Number(b.validation.valid)-Number(a.validation.valid)||stranded(a)-stranded(b)||b.accepted-a.accepted||b.minEfficiency-a.minEfficiency||b.meanEfficiency-a.meanEfficiency||(a.chain?.othersCost??0)-(b.chain?.othersCost??0)||a.metrics.arrivalDelay-b.metrics.arrivalDelay||a.id.localeCompare(b.id)).map((o,i)=>({...o,rank:i+1}));
 }
 
@@ -166,5 +166,5 @@ export function recoveryMapPayload(s,option,portfolio,selection=null){
   scenario.arrivals[0]={...scenario.arrivals[0],gateIn:a.gateIn,clearAt:a.clearAt};
   scenario.slots=option.plan.departures.map(d=>d.takeoff).sort((a,b)=>a-b);
   scenario.stands=scenario.stands.map(g=>({...g,compatible:s.closedStands.includes(g.id)?[]:g.compatible}));
-  return {scenario,plan:option.plan,validation:option.validation,result:{status:'preview',stateVersion:s.stateVersion,plan:option.plan},recovery:{optionId:option.id,title:option.title,hash:option.hash,validated:option.validation.valid,selected:selection?.optionId===option.id,metrics:option.metrics,baselineETA:s.baselineETA,activeRunways:s.activeRunways},reviews:Object.fromEntries(option.assessments.map(a=>[a.role,a])),proposals:{},events:portfolio.events,busy:false,mode:'policy'};
+  return {scenario,plan:option.plan,validation:option.validation,result:{status:'preview',stateVersion:s.stateVersion,plan:option.plan},recovery:{optionId:option.id,title:option.title,hash:option.hash,validated:option.validation.valid,selected:selection?.optionId===option.id,metrics:option.metrics,baselineETA:s.baselineETA,activeRunways:s.activeRunways},reviews:Object.fromEntries(option.assessments.map(a=>[a.role,a])),proposals:{},events:portfolio.events,busy:false,mode:portfolio.mode};
 }

@@ -1,0 +1,36 @@
+/* New agent controls and discussion overlay retain the existing map and rails. */
+#agent-progress:not(:empty){margin-bottom:14px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:11px;line-height:1.8}
+#agent-progress p{margin:2px 0}#agent-config{overflow-wrap:anywhere;font-size:10px;line-height:1.8;color:var(--muted)}
+.live-message{padding:10px 0;border-bottom:1px solid var(--line);font-size:11px;line-height:1.7}
+.workspace-views{position:absolute;z-index:4;top:244px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:4px;background:#0e1821ef;border:1px solid #304454;border-radius:10px;box-shadow:0 4px 16px #0004}
+.workspace-views button{background:transparent;color:var(--muted);font:10px var(--mono);padding:8px 12px;border:1px solid transparent;border-radius:6px;min-height:32px;white-space:nowrap}
+.workspace-views button[aria-pressed=true]{background:#193541;border-color:#346773;color:var(--ground)}
+.conversation-view{position:absolute;z-index:3;top:292px;bottom:112px;left:calc(var(--left-width) + var(--edge)*2);right:calc(var(--right-width) + var(--edge)*2);min-height:0;overflow:auto;padding:22px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.conversation-view[hidden]{display:none}
+.left-panel-hidden .conversation-view{left:var(--edge)}.right-panel-hidden .conversation-view{right:var(--edge)}
+.show-conversation #map-empty{visibility:hidden}
+.received-message{margin-top:10px;padding:9px;border-left:2px solid var(--line);background:var(--panel2);border-radius:5px}.received-message blockquote{margin:6px 0 0;font-size:11px;line-height:1.7}.enforced-decision{color:var(--atc);font-size:11px;line-height:1.7;margin:10px 0 0}
+.conversation-heading{display:flex;align-items:start;justify-content:space-between;gap:16px}.conversation-heading h2{font-size:21px;line-height:1.3;letter-spacing:-.4px;margin:0;font-weight:550}
+.conversation-heading p{font-size:12px;color:var(--muted);margin:8px 0 0;line-height:1.6}.conversation-heading label{font-size:11px;color:var(--muted);flex-shrink:0}
+.conversation-heading select{display:block;margin-top:6px;padding:8px;background:var(--panel2);color:var(--text);border:1px solid var(--line);border-radius:4px;max-width:190px;min-height:36px}
+.relay-diagram{margin:22px 0 18px}.relay-diagram>svg{width:100%;height:auto;max-height:165px;display:block;overflow:visible}
+.relay-diagram rect{fill:var(--panel2);stroke:var(--line)}.relay-diagram text{fill:var(--text);font-size:15px;font-family:inherit}.relay-diagram .relay-subtitle,.relay-diagram .relay-round{fill:var(--muted);font-size:12px}
+.relay-line{fill:none;stroke:var(--line);stroke-width:1.5}.relay-line.received.atc{stroke:var(--atc)}.relay-line.received.pilot{stroke:var(--pilot)}.relay-line.received.ground{stroke:var(--ground)}.relay-dot{fill:var(--muted)}.relay-dot.received{fill:var(--good)}
+.relay-diagram>p{text-align:center;font-size:12px;line-height:1.6;color:var(--muted);margin:10px 0 0}
+.speaker-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:14px;align-items:start}
+.speaker{min-width:0}.speaker>header{display:flex;align-items:center;gap:10px;padding:4px 0 10px}.speaker h3{font-size:14px;line-height:1.4;font-weight:550;margin:0}.speaker header p{font-size:11px;color:var(--muted);margin:3px 0 0}
+.speaker-portrait{width:40px;height:40px;flex-shrink:0}.speaker.atc .speaker-portrait{color:var(--atc)}.speaker.pilot .speaker-portrait{color:var(--pilot)}.speaker.ground .speaker-portrait{color:var(--ground)}
+.speaker-status{display:flex;align-items:center;gap:6px;color:var(--muted);font-size:11px;line-height:1.7;min-height:30px;margin-bottom:12px;overflow-wrap:anywhere}.speaker-dot{width:6px;height:6px;border-radius:50%;background:var(--muted);flex-shrink:0}.speaker-dot.completed{background:var(--good)}.speaker-dot.failed{background:var(--bad)}.speaker-dot.reviewing{background:var(--atc)}
+.speech{position:relative;border:1px solid var(--line);border-radius:6px;background:var(--panel2);padding:15px;overflow-wrap:anywhere}.speech:before{content:'';position:absolute;top:-6px;left:16px;width:10px;height:10px;transform:rotate(45deg);border-top:1px solid var(--line);border-left:1px solid var(--line);background:var(--panel2)}
+.speech-heading{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:6px;font-size:11px;line-height:1.5}.speech-heading>span{font-family:var(--mono);font-variant-numeric:tabular-nums;color:var(--muted)}.speech-vote{font-weight:500}.speech-vote.accept{color:var(--good)}.speech-vote.counter{color:var(--atc)}.speech-vote.veto{color:var(--bad)}
+.speech blockquote{margin:13px 0 0;font-size:14px;line-height:1.75;color:var(--text)}.speech-source{font-size:11px;line-height:1.7;color:var(--muted);margin:14px 0 0}.speech.waiting{font-size:13px;color:var(--muted);line-height:1.75;min-height:125px}
+.heard{font-size:11px;line-height:1.8;color:var(--muted);margin-top:12px}.heard summary{cursor:pointer;color:var(--text)}.heard p{margin:7px 0}.position-change{font-size:11px;line-height:1.7;color:var(--muted);margin:12px 0}
+.conversation-outcome{margin-top:26px;padding:17px 0;border-top:1px solid var(--line);border-bottom:1px solid var(--line)}.conversation-outcome strong{font-weight:550;font-size:15px}.conversation-outcome p{margin:8px 0 0;line-height:1.8;font-size:13px;color:var(--muted)}
+.conversation-help{margin-top:18px;font-size:12px;line-height:1.9;color:var(--muted)}.conversation-help summary{cursor:pointer;color:var(--text)}.conversation-help ol{padding-left:20px;margin-bottom:0}
+
+
+.relay-hub{width:min(290px,100%);margin:auto;padding:15px 12px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}.relay-hub strong{display:block;font-size:15px;font-weight:500;line-height:1.6}.relay-hub span{display:block;font-size:12px;color:var(--muted);line-height:1.7;margin-top:3px}.relay-diagram>svg{height:70px;min-height:70px;max-height:70px}.relay-count{text-align:center;font-size:12px;color:var(--muted);line-height:1.6}.relay-line{vector-effect:non-scaling-stroke}
+
+@media(max-width:1500px){.speaker-grid{grid-template-columns:1fr}.conversation-heading{flex-direction:column}}
+@media(max-width:900px){.workspace-views{top:300px}.conversation-view{top:348px;left:var(--edge);right:var(--edge);bottom:108px}}
+@media(max-width:600px){.conversation-view{padding:16px}.conversation-heading h2{font-size:19px}.conversation-heading label{width:100%}.conversation-heading select{max-width:none;width:100%;min-height:44px}.speaker-grid{gap:24px}.workspace-views button{font-size:9px;padding:7px 9px}.heard summary,.conversation-help summary{min-height:40px;display:flex;align-items:center}}
