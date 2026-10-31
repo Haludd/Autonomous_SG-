@@ -48,3 +48,9 @@ test('arrival replay shows holding, gate taxi, turnaround and onward movement bo
  const a={baselineLanding:26,landing:40,gateIn:44,ready:79,nextDeparture:85},g={approach:[[0,0],[10,10]],hold:[10,10],arrivalTaxi:[[10,10],[20,20]],gate:[20,20],departureTaxi:[[20,20],[30,30]],runway:[[30,30],[40,40]]};
  for(const [minute,phase] of [[0,'INBOUND'],[26,'HOLDING'],[39,'HOLDING'],[40,'ARRIVAL_TAXI'],[44,'TURNAROUND'],[79,'PUSHBACK'],[81,'TAXI'],[85,'DEPARTED']])assert.equal(recoveryArrivalAt(a,minute,g).phase,phase);assert.equal(recoveryArrivalAt(a,86,g).visible,false);
 });
+
+test('an option that strands a chained arrival is neither consensus nor ranked above one that does not',()=>{
+ const s=createRecoveryScenario(),chain={gate:{groupSize:2,servePosition:1,blocked:1,selfBlocked:false,othersCost:1000,effects:[],order:['A','B']},sequence:{groupSize:2,servePosition:1,blocked:0,selfBlocked:false,othersCost:6,effects:[],order:['A','B']},hold:{groupSize:2,servePosition:1,blocked:0,selfBlocked:false,othersCost:6,effects:[],order:['A','B']}};
+ const p=negotiateRecovery(s,{chain});assert.equal(p.options.find(o=>o.id==='gate').consensus,false);assert.notEqual(p.recommendedId,'gate');assert.equal(p.options.at(-1).id,'gate');assert.ok(p.events.at(-1).explanation.includes('Chain check'));
+ assert.equal(negotiateRecovery(s).recommendedId,'gate');
+});

@@ -7,7 +7,7 @@ export const flightIndex=JSON.parse(readFileSync(new URL('../data/flights-index.
 const roles=['ATC','PILOT','GROUND'];
 const digest=value=>createHash('sha256').update(JSON.stringify(value)).digest('hex').slice(0,16);
 export const recoveryPlanHash=(scenario,plan)=>digest({scenario,plan});
-const hhmm=value=>{const t=String(value).padStart(4,'0');return Number(t.slice(0,2))*60+Number(t.slice(2));};
+export const hhmm=value=>{const t=String(value).padStart(4,'0');return Number(t.slice(0,2))*60+Number(t.slice(2));};
 const num=(row,key)=>row[key]===''||row[key]==null?null:Number(row[key]);
 const ruleNumber=name=>{const row=constraints.fuel_and_crew.find(r=>r.rule===name);const token=String(row?.value).replaceAll(',','').match(/\d+(?:\.\d+)?/);const n=token?Number(token[0]):NaN;if(!Number.isFinite(n))throw new Error(`Missing numeric workbook rule: ${name}`);return n;};
 export const wakeName=w=>({S:'Super (A380)',H:'Heavy',M:'Large',L:'Small'}[w]||w);
@@ -116,16 +116,18 @@ export function rankRecovery(options,messages){
   return options.map(o=>{
     const assessments=roles.map(role=>messages.find(m=>m.role===role)?.assessments.find(a=>a.optionId===o.id&&a.planHash===o.hash&&a.stateVersion===o.plan.stateVersion)).filter(Boolean);
     const accepted=assessments.filter(a=>a.decision==='ACCEPT').length;
-    return {...o,assessments,accepted,consensus:o.validation.valid&&assessments.length===3&&accepted===3,minEfficiency:Math.min(...assessments.map(a=>a.efficiency)),meanEfficiency:Math.round(assessments.reduce((n,a)=>n+a.efficiency,0)/Math.max(1,assessments.length))};
-  }).sort((a,b)=>Number(b.validation.valid)-Number(a.validation.valid)||b.accepted-a.accepted||b.minEfficiency-a.minEfficiency||b.meanEfficiency-a.meanEfficiency||a.metrics.arrivalDelay-b.metrics.arrivalDelay||a.id.localeCompare(b.id)).map((o,i)=>({...o,rank:i+1}));
+    return {...o,assessments,accepted,consensus:o.validation.valid&&stranded(o)===0&&assessments.length===3&&accepted===3,minEfficiency:Math.min(...assessments.map(a=>a.efficiency)),meanEfficiency:Math.round(assessments.reduce((n,a)=>n+a.efficiency,0)/Math.max(1,assessments.length))};
+  }).sort((a,b)=>Number(b.validation.valid)-Number(a.validation.valid)||stranded(a)-stranded(b)||b.accepted-a.accepted||b.minEfficiency-a.minEfficiency||b.meanEfficiency-a.meanEfficiency||(a.chain?.othersCost??0)-(b.chain?.othersCost??0)||a.metrics.arrivalDelay-b.metrics.arrivalDelay||a.id.localeCompare(b.id)).map((o,i)=>({...o,rank:i+1}));
 }
 
+export const recoveryCost=o=>o.metrics.arrivalDelay+o.metrics.holdingFuel/40+4*o.metrics.gateChanges+3*o.metrics.resequenced+2*o.metrics.overtime+(o.chain?.othersCost??0);
+const stranded=o=>(o.chain?.blocked??0)+(o.chain?.selfBlocked?1:0);
 export function recoveryFallback(options){
-  return options.filter(o=>o.validation.valid).sort((a,b)=>{const cost=o=>o.metrics.arrivalDelay+o.metrics.holdingFuel/40+4*o.metrics.gateChanges+3*o.metrics.resequenced+2*o.metrics.overtime;return cost(a)-cost(b)||a.id.localeCompare(b.id);})[0]??null;
+  return options.filter(o=>o.validation.valid).sort((a,b)=>recoveryCost(a)-recoveryCost(b)||a.id.localeCompare(b.id))[0]??null;
 }
 
-export function negotiateRecovery(s,{forceTimeout=false}={}){
-  const options=buildRecoveryCandidates(s).map(o=>({...o,validation:validateRecovery(s,o)})),agents=roles.map(role=>new RecoveryAgent(role)),events=[];
+export function negotiateRecovery(s,{forceTimeout=false,chain=null}={}){
+  const options=buildRecoveryCandidates(s).map(o=>({...o,validation:validateRecovery(s,o),chain:chain?.[o.id]??null})),agents=roles.map(role=>new RecoveryAgent(role)),events=[];
   let ranked=options,messages=[],turns=0;
   if(!forceTimeout)for(let turn=1;turn<=3;turn++){
     turns=turn;const previous=messages;messages=agents.map(a=>a.message(s,options,turn,previous));events.push(...messages);
@@ -134,9 +136,9 @@ export function negotiateRecovery(s,{forceTimeout=false}={}){
   }
   if(forceTimeout){ranked=options.map((o,i)=>({...o,rank:i+1,assessments:[],accepted:0,consensus:false,minEfficiency:null,meanEfficiency:null}));}
   const consensus=forceTimeout?null:ranked.find(o=>o.consensus),fallback=consensus?null:recoveryFallback(ranked),recommended=consensus??fallback;
-  const status=consensus?'consensus':fallback?'fallback':'handoff';
-  events.push({type:status,turn:turns,stateVersion:s.stateVersion,optionId:recommended?.id??null,explanation:consensus?`All three independent policy agents accepted “${consensus.title}” (${consensus.hash}). This consensus applies to that recommendation; other options retain their own assessments. Human selection is pending.`:forceTimeout?'Timeout drill. Deterministic cost rule selected a validated alternative without agent messages.':fallback?`No unanimous acceptance after three turns. Deterministic cost rule recommends “${fallback.title}”.`:'No hard-valid alternative exists in the three-strategy search. Human review required.'});
-  return {stateVersion:s.stateVersion,status,turns,mode:'policy',options:ranked,recommendedId:recommended?.id??null,selectedId:null,events,ranking:'Hard-valid first, then ACCEPT count, then lowest agent efficiency, mean efficiency and arrival delay. Scores are policy assessments, not model confidence or probabilities.',scorePolicy:{acceptThreshold:70,ATC:'max(0, 100 − 2 × arrival delay − 14 × resequenced departures)',PILOT:'max(0, 100 − 4 × holding minutes)',GROUND:'max(0, 100 − 26 × gate changes − 2 × overtime minutes)'}};
+  const status=consensus?'consensus':fallback?'fallback':'handoff',c=recommended?.chain,note=c?` Chain check: ${c.blocked?`${c.blocked} chained arrival(s) would be left without an option`:'no chained arrival is left without an option'}; this flight is served ${c.servePosition} of ${c.groupSize}.`:'';
+  events.push({type:status,turn:turns,stateVersion:s.stateVersion,optionId:recommended?.id??null,explanation:(consensus?`All three independent policy agents accepted “${consensus.title}” (${consensus.hash}). This consensus applies to that recommendation; other options retain their own assessments. Human selection is pending.`:forceTimeout?'Timeout drill. Deterministic cost rule selected a validated alternative without agent messages.':fallback?`No unanimous acceptance after three turns. Deterministic cost rule recommends “${fallback.title}”.`:'No hard-valid alternative exists in the three-strategy search. Human review required.')+note});
+  return {stateVersion:s.stateVersion,status,turns,mode:'policy',options:ranked,recommendedId:recommended?.id??null,selectedId:null,events,ranking:'Hard-valid first, then options that strand no chained arrival, then ACCEPT count, then lowest agent efficiency, mean efficiency, knock-on cost to chained arrivals and arrival delay. Scores are policy assessments, not model confidence or probabilities.',scorePolicy:{acceptThreshold:70,ATC:'max(0, 100 − 2 × arrival delay − 14 × resequenced departures)',PILOT:'max(0, 100 − 4 × holding minutes)',GROUND:'max(0, 100 − 26 × gate changes − 2 × overtime minutes)'}};
 }
 
 export function chooseRecovery(s,portfolio,{optionId,planHash,stateVersion}){
@@ -144,7 +146,7 @@ export function chooseRecovery(s,portfolio,{optionId,planHash,stateVersion}){
   const option=portfolio.options.find(o=>o.id===optionId);
   if(!option||option.hash!==planHash||recoveryPlanHash(s,option.plan)!==planHash)throw new Error('Option identity or plan hash does not match.');
   const validation=validateRecovery(s,option);if(!validation.valid)throw new Error('A hard constraint blocks this option. Human selection cannot waive it.');
-  return {optionId,planHash,stateVersion,source:option.consensus?'human_selected_consensus':'human_selected_validated_alternative',preferenceObjections:option.assessments.filter(a=>a.decision==='COUNTER'),time:new Date().toISOString(),explanation:'Human selected a planning option. No movement was executed.'};
+  return {optionId,planHash,stateVersion,source:option.consensus?'human_selected_consensus':'human_selected_validated_alternative',preferenceObjections:option.assessments.filter(a=>a.decision==='COUNTER'),chain:option.chain??null,time:new Date().toISOString(),explanation:'Human selected a planning option. No movement was executed.'};
 }
 
 export function recoveryMapPayload(s,option,portfolio,selection=null){

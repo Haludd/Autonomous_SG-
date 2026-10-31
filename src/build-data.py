@@ -40,11 +40,14 @@ tables['source'] = {'filename': workbook.name, 'sha256': hashlib.sha256(workbook
 
 flights = ROOT / 'data/flights.csv'
 records, total, qualifying = [], 0, 0
+jfk_departures = {}
 with flights.open(newline='') as f:
     for source_row, row in enumerate(csv.DictReader(f), 2):
         total += 1
         matches = float(row.get('WEATHER_DELAY') or 0) > 15 or float(row.get('LATE_AIRCRAFT_DELAY') or 0) > 20
         qualifying += matches
+        if row['ORIGIN_AIRPORT'] == 'JFK' and row['CANCELLED'] == '0' and row['TAIL_NUMBER']:
+            jfk_departures.setdefault((row['TAIL_NUMBER'], row['MONTH'], row['DAY']), []).append({'sourceRow': source_row, **{k: row[k] for k in ['AIRLINE', 'FLIGHT_NUMBER', 'DESTINATION_AIRPORT', 'SCHEDULED_DEPARTURE', 'LATE_AIRCRAFT_DELAY']}})
         if matches and row['DESTINATION_AIRPORT'] == 'JFK' and row['CANCELLED'] == '0' and row['DIVERTED'] == '0':
             records.append({'sourceRow': source_row, 'record': row})
 
@@ -58,4 +61,11 @@ def example_order(item):
 records.sort(key=example_order)
 index = {'totalRows': total, 'qualifyingRows': qualifying, 'jfkArrivalCount': len(records), 'sha256': hashlib.sha256(flights.read_bytes()).hexdigest(), 'sourceUrl': SOURCE_URL, 'records': records[:100]}
 (ROOT / 'data/flights-index.json').write_text(json.dumps(index, indent=2))
+# Same-aircraft knock-on: the earliest later JFK departure that day on the arriving tail. The CSV lists only delayed flights, so this is partial.
+onward = {}
+for item in records[:100]:
+    row = item['record']
+    later = [d for d in jfk_departures.get((row['TAIL_NUMBER'], row['MONTH'], row['DAY']), []) if int(d['SCHEDULED_DEPARTURE']) >= int(row['SCHEDULED_ARRIVAL'])]
+    onward[str(item['sourceRow'])] = min(later, key=lambda d: (int(d['SCHEDULED_DEPARTURE']), d['sourceRow'])) if later else None
+(ROOT / 'data/onward-index.json').write_text(json.dumps({'note': 'Earliest later JFK departure on the same tail and date. Partial: the source CSV lists delayed flights only.', 'onward': onward}, indent=2))
 print(f'{total:,} records; {qualifying:,} qualifying; {len(records):,} JFK arrivals; 100 indexed examples.')

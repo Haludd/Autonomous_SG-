@@ -62,3 +62,13 @@ test('recovery rejects a hard-constraint override and resets choice on new compa
  const valid=result.portfolio.options[0];await post(`/api/recovery/${created.id}/choose`,{optionId:valid.id,planHash:valid.hash,stateVersion:1});
  const rerun=await(await post(`/api/recovery/${created.id}/compare`,{forceTimeout:true})).json();assert.equal(rerun.selection,null);assert.equal(rerun.portfolio.turns,0);assert.equal(rerun.portfolio.options[0].assessments.length,0);
 });
+test('evaluation checks chained arrivals and carries the knock-on into each option and the human choice',async()=>{
+ const solo=await(await post('/api/recovery',{index:0})).json();assert.equal(solo.chain,null);
+ const lone=await(await post(`/api/recovery/${solo.id}/compare`,{})).json();assert.ok(lone.portfolio.options.every(o=>o.chain===null));
+ const created=await(await post('/api/recovery',{index:36})).json();assert.deepEqual(created.chain.group.map(g=>g.id),['B6 717','B6 584']);assert.equal(created.chain.group.filter(g=>g.self).length,1);
+ const result=await(await post(`/api/recovery/${created.id}/compare`,{})).json();
+ for(const o of result.portfolio.options){assert.equal(o.chain.groupSize,2);assert.ok(o.chain.effects.includes('B6 717: passes 22 min to B6 1501 to FLL.')||o.chain.effects.some(e=>e.startsWith('B6 717: passes')));}
+ assert.ok(result.portfolio.events.at(-1).explanation.includes('Chain check'));
+ const o=result.portfolio.options[0],chosen=await(await post(`/api/recovery/${created.id}/choose`,{optionId:o.id,planHash:o.hash,stateVersion:1})).json();assert.equal(chosen.selection.chain.groupSize,2);
+ const stress=await(await post('/api/recovery',{index:0,stress:true})).json();assert.equal(stress.chain.group.length,4);assert.ok(stress.chain.note.includes('not a historical event'));assert.ok(stress.chain.group.filter(g=>g.retimed).length===3);
+});

@@ -8,12 +8,13 @@ import {negotiate} from './agents.mjs';
 import {providerConfig} from './providers.mjs';
 import {parseCSV,qualifyingFlights} from './import.mjs';
 import {constraints,flightIndex,createRecoveryScenario,negotiateRecovery,chooseRecovery,recoveryMapPayload} from './recovery.mjs';
+import {chainContext,chainImpact} from './chain.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 try{const env=await readFile(path.join(root,'.env'),'utf8');for(const line of env.split(/\r?\n/)){const m=line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^(['"])(.*)\1$/,'$2');}}catch{}
 const sessions=new Map();
 const recoveries=new Map();
-function recoverySnapshot(s){return {id:s.id,scenario:s.scenario,portfolio:s.portfolio,selection:s.selection,audit:s.audit,maps:s.portfolio?Object.fromEntries(s.portfolio.options.map(o=>[o.id,recoveryMapPayload(s.scenario,o,s.portfolio,s.selection)])):null};}
+function recoverySnapshot(s){return {id:s.id,scenario:s.scenario,chain:s.chain?.summary??null,portfolio:s.portfolio,selection:s.selection,audit:s.audit,maps:s.portfolio?Object.fromEntries(s.portfolio.options.map(o=>[o.id,recoveryMapPayload(s.scenario,o,s.portfolio,s.selection)])):null};}
 let catalog={airports:[],airlines:[]};
 for(const type of ['airports','airlines'])try{catalog[type]=parseCSV(await readFile(path.join(root,'data',`${type}.csv`),'utf8'));}catch{}
 const json=(res,status,data)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(data));};
@@ -38,7 +39,7 @@ export const server=http.createServer(async(req,res)=>{
       const b=await body(req),scenario=createRecoveryScenario(b.index??0,{closedStands:b.closedStands||[],arrivalFuel:b.arrivalFuel});
       if(scenario.closedStands.some(id=>!scenario.stands.some(s=>s.id===id))||!Number.isFinite(scenario.target.arrivalFuel)||scenario.target.arrivalFuel<0)throw new Error('Invalid recovery inputs.');
       if(recoveries.size>=100)recoveries.delete(recoveries.keys().next().value);
-      const s={id:randomUUID(),scenario,portfolio:null,selection:null,audit:[]};recoveries.set(s.id,s);json(res,201,recoverySnapshot(s));return;
+      const s={id:randomUUID(),scenario,chain:chainContext(b.index??0,scenario,{stress:Boolean(b.stress)}),portfolio:null,selection:null,audit:[]};recoveries.set(s.id,s);json(res,201,recoverySnapshot(s));return;
     }
     const recoveryRoute=url.pathname.match(/^\/api\/recovery\/([a-f0-9-]+)(?:\/(\w+))?$/);
     if(recoveryRoute){
@@ -46,7 +47,7 @@ export const server=http.createServer(async(req,res)=>{
       const action=recoveryRoute[2];
       if(req.method==='GET'&&!action){json(res,200,recoverySnapshot(s));return;}
       if(req.method==='POST'&&action==='compare'){
-        const b=await body(req);s.portfolio=negotiateRecovery(s.scenario,{forceTimeout:Boolean(b.forceTimeout)});s.selection=null;s.audit.push({type:'comparison',time:new Date().toISOString(),portfolio:clone(s.portfolio)});json(res,200,recoverySnapshot(s));return;
+        const b=await body(req);s.portfolio=negotiateRecovery(s.scenario,{forceTimeout:Boolean(b.forceTimeout),chain:s.chain?chainImpact(s.chain):null});s.selection=null;s.audit.push({type:'comparison',time:new Date().toISOString(),portfolio:clone(s.portfolio)});json(res,200,recoverySnapshot(s));return;
       }
       if(req.method==='POST'&&action==='choose'){
         s.selection=chooseRecovery(s.scenario,s.portfolio,await body(req));s.portfolio.selectedId=s.selection.optionId;s.audit.push({type:'human_selection',...s.selection});json(res,200,recoverySnapshot(s));return;

@@ -72,6 +72,16 @@ The weights and threshold are disclosed application choices, not organizer const
 
 After three turns with no consensus, a deterministic fallback minimizes arrival delay + holding fuel / 40 + 4 × gate changes + 3 × resequenced departures + 2 × overtime. It chooses only from validated options. Failure means none of these three strategies yielded a valid option; it is not a proof of global infeasibility or optimality.
 
+## Chain collisions
+
+Evaluation also checks whether a recovery option cascades into other disrupted arrivals. A chain is every arrival reachable from the selected flight through overlapping claims on spare gates, runway slots and onward departures: A clashes with B, B with C. It is not an hour bucket. Most of the 100 example flights have no chain. B6 717 and B6 584 do.
+
+For each valid option, the chain is served in every order that keeps safety tiers in sequence (emergency, fuel, crew, spare-gate need, routine). Each flight takes its cheapest option that fits what earlier flights already claimed: spare gates held until turnaround clears, one landing per minute on runway 4R, one departure per minute on runway 4L, and the same-tail onward JFK departure that day. A taken slot pushes a flight a minute later, and a late aircraft passes its delay to its onward flight. The lowest-cost order wins, and ties keep the urgency order (tier, then least slack, then earliest ETA).
+
+The result changes the evaluation in three disclosed ways. An option that leaves another chained arrival without any feasible option ranks behind options that do not, and cannot be unanimous consensus. The knock-on cost on other arrivals breaks ties before arrival delay and is added to the fallback cost. Each option card and the selection record show the serve position and knock-on. Chain results are a system check, not a fourth agent. Weights are disclosed product choices. The onward-flight link is partial because the CSV lists delayed flights only.
+
+**Stress test** (Scenario inputs) adds three real arrivals re-timed to land 1–3 minutes after the selected flight. Their fuel, crew and onward facts are real. The collision itself is not a historical event and is labelled as such.
+
 ## Human choice and audit
 
 Preview and human selection are separate. Choosing a 2/3 alternative records `human_selected_validated_alternative`, with the unresolved preference objections. It never becomes agent consensus by relabeling. The server revalidates the option and verifies a hash bound to the entire scenario and plan. Changed inputs create a new session, clear old reviews/selection and require re-evaluation. Comparisons and choices are retained in an exportable session audit. Sessions are in memory and reset on server restart or page reload.
@@ -90,9 +100,11 @@ The earlier departure sandbox remains at `/operations.html`. Its optional Claude
 node --test test/*.test.mjs
 ```
 
-Tests cover domain checks, exactly three messages per turn, independent acceptance/ranking, exact fuel/notice boundaries, fallback, blocked selections, scenario-bound hashes, source provenance, HTTP exports, and arrival/taxi/turnaround/onward replay boundaries.
+Tests cover domain checks, exactly three messages per turn, independent acceptance/ranking, exact fuel/notice boundaries, fallback, blocked selections, scenario-bound hashes, source provenance, HTTP exports, and arrival/taxi/turnaround/onward replay boundaries, chain linking, serving order, stranded options and the stress test.
 
 - `src/recovery.mjs`: workbook-backed scenario, three strategies, validator, role agents, ranking, fallback and human-choice validation.
+- `src/chain.mjs`, `src/triage.mjs`: chain collisions, serving order and urgency tiers.
+- `data/onward-index.json`: same-tail onward JFK departure for each indexed arrival.
 - `src/build-data.py`: reproducible extraction/indexing of original inputs.
 - `src/server.mjs`: loopback API and static files.
 - `public/recovery.*`: recovery comparison interface.

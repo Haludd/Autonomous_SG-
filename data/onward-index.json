@@ -1,0 +1,301 @@
+{
+  "note": "Earliest later JFK departure on the same tail and date. Partial: the source CSV lists delayed flights only.",
+  "onward": {
+    "340659": {
+      "sourceRow": 340615,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "477",
+      "DESTINATION_AIRPORT": "JAX",
+      "SCHEDULED_DEPARTURE": "1452",
+      "LATE_AIRCRAFT_DELAY": "28"
+    },
+    "92917": null,
+    "238196": null,
+    "209685": null,
+    "200484": null,
+    "15608": {
+      "sourceRow": 15594,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "308",
+      "DESTINATION_AIRPORT": "PWM",
+      "SCHEDULED_DEPARTURE": "1330",
+      "LATE_AIRCRAFT_DELAY": "22"
+    },
+    "254623": {
+      "sourceRow": 254627,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "409",
+      "DESTINATION_AIRPORT": "SJU",
+      "SCHEDULED_DEPARTURE": "1459",
+      "LATE_AIRCRAFT_DELAY": "42"
+    },
+    "275141": null,
+    "50902": null,
+    "44384": null,
+    "230225": null,
+    "328804": null,
+    "108378": {
+      "sourceRow": 108475,
+      "AIRLINE": "MQ",
+      "FLIGHT_NUMBER": "3636",
+      "DESTINATION_AIRPORT": "CMH",
+      "SCHEDULED_DEPARTURE": "1459",
+      "LATE_AIRCRAFT_DELAY": "23"
+    },
+    "292118": null,
+    "347131": null,
+    "57548": null,
+    "264388": null,
+    "238183": null,
+    "255907": null,
+    "317356": null,
+    "57818": null,
+    "31767": null,
+    "171303": null,
+    "57024": null,
+    "40602": null,
+    "188175": null,
+    "224232": {
+      "sourceRow": 224233,
+      "AIRLINE": "VX",
+      "FLIGHT_NUMBER": "413",
+      "DESTINATION_AIRPORT": "LAX",
+      "SCHEDULED_DEPARTURE": "1655",
+      "LATE_AIRCRAFT_DELAY": "34"
+    },
+    "288193": null,
+    "57007": {
+      "sourceRow": 57049,
+      "AIRLINE": "MQ",
+      "FLIGHT_NUMBER": "3615",
+      "DESTINATION_AIRPORT": "CLE",
+      "SCHEDULED_DEPARTURE": "1510",
+      "LATE_AIRCRAFT_DELAY": "87"
+    },
+    "297647": null,
+    "346456": null,
+    "135114": null,
+    "14005": null,
+    "99877": null,
+    "239249": null,
+    "319486": null,
+    "57838": {
+      "sourceRow": 57922,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "1501",
+      "DESTINATION_AIRPORT": "FLL",
+      "SCHEDULED_DEPARTURE": "1155",
+      "LATE_AIRCRAFT_DELAY": "42"
+    },
+    "241824": null,
+    "301189": {
+      "sourceRow": 301183,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "518",
+      "DESTINATION_AIRPORT": "BOS",
+      "SCHEDULED_DEPARTURE": "1124",
+      "LATE_AIRCRAFT_DELAY": "78"
+    },
+    "285357": null,
+    "165486": null,
+    "275232": {
+      "sourceRow": 275089,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "430",
+      "DESTINATION_AIRPORT": "SFO",
+      "SCHEDULED_DEPARTURE": "1145",
+      "LATE_AIRCRAFT_DELAY": "45"
+    },
+    "37938": null,
+    "354891": null,
+    "33936": {
+      "sourceRow": 33931,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "439",
+      "DESTINATION_AIRPORT": "BOS",
+      "SCHEDULED_DEPARTURE": "1210",
+      "LATE_AIRCRAFT_DELAY": "0"
+    },
+    "70465": {
+      "sourceRow": 70495,
+      "AIRLINE": "US",
+      "FLIGHT_NUMBER": "1972",
+      "DESTINATION_AIRPORT": "CLT",
+      "SCHEDULED_DEPARTURE": "1200",
+      "LATE_AIRCRAFT_DELAY": "55"
+    },
+    "243715": {
+      "sourceRow": 243711,
+      "AIRLINE": "AA",
+      "FLIGHT_NUMBER": "67",
+      "DESTINATION_AIRPORT": "AUS",
+      "SCHEDULED_DEPARTURE": "1729",
+      "LATE_AIRCRAFT_DELAY": "119"
+    },
+    "285928": null,
+    "285738": {
+      "sourceRow": 285733,
+      "AIRLINE": "AA",
+      "FLIGHT_NUMBER": "67",
+      "DESTINATION_AIRPORT": "AUS",
+      "SCHEDULED_DEPARTURE": "1700",
+      "LATE_AIRCRAFT_DELAY": "38"
+    },
+    "234316": null,
+    "39387": {
+      "sourceRow": 39460,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "918",
+      "DESTINATION_AIRPORT": "BOS",
+      "SCHEDULED_DEPARTURE": "1645",
+      "LATE_AIRCRAFT_DELAY": "48"
+    },
+    "96627": {
+      "sourceRow": 96621,
+      "AIRLINE": "MQ",
+      "FLIGHT_NUMBER": "2949",
+      "DESTINATION_AIRPORT": "BNA",
+      "SCHEDULED_DEPARTURE": "1655",
+      "LATE_AIRCRAFT_DELAY": "39"
+    },
+    "235690": null,
+    "343431": {
+      "sourceRow": 342986,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "430",
+      "DESTINATION_AIRPORT": "SFO",
+      "SCHEDULED_DEPARTURE": "1130",
+      "LATE_AIRCRAFT_DELAY": "91"
+    },
+    "280219": null,
+    "307093": null,
+    "317283": null,
+    "340461": {
+      "sourceRow": 340257,
+      "AIRLINE": "AA",
+      "FLIGHT_NUMBER": "416",
+      "DESTINATION_AIRPORT": "CLT",
+      "SCHEDULED_DEPARTURE": "1705",
+      "LATE_AIRCRAFT_DELAY": "103"
+    },
+    "30109": {
+      "sourceRow": 30110,
+      "AIRLINE": "AA",
+      "FLIGHT_NUMBER": "199",
+      "DESTINATION_AIRPORT": "ORD",
+      "SCHEDULED_DEPARTURE": "1710",
+      "LATE_AIRCRAFT_DELAY": "21"
+    },
+    "77116": null,
+    "259861": {
+      "sourceRow": 259853,
+      "AIRLINE": "MQ",
+      "FLIGHT_NUMBER": "3374",
+      "DESTINATION_AIRPORT": "DCA",
+      "SCHEDULED_DEPARTURE": "1035",
+      "LATE_AIRCRAFT_DELAY": "66"
+    },
+    "49357": null,
+    "242711": {
+      "sourceRow": 242716,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "263",
+      "DESTINATION_AIRPORT": "SEA",
+      "SCHEDULED_DEPARTURE": "1736",
+      "LATE_AIRCRAFT_DELAY": "22"
+    },
+    "44394": null,
+    "36990": {
+      "sourceRow": 36943,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "496",
+      "DESTINATION_AIRPORT": "RSW",
+      "SCHEDULED_DEPARTURE": "1125",
+      "LATE_AIRCRAFT_DELAY": "65"
+    },
+    "248580": null,
+    "30813": null,
+    "45738": null,
+    "287961": {
+      "sourceRow": 287787,
+      "AIRLINE": "AA",
+      "FLIGHT_NUMBER": "942",
+      "DESTINATION_AIRPORT": "MIA",
+      "SCHEDULED_DEPARTURE": "1100",
+      "LATE_AIRCRAFT_DELAY": "37"
+    },
+    "254626": null,
+    "279837": null,
+    "242712": null,
+    "249946": null,
+    "42856": null,
+    "178804": null,
+    "168224": null,
+    "225489": null,
+    "42832": null,
+    "228260": null,
+    "277250": null,
+    "293980": null,
+    "20896": null,
+    "42815": null,
+    "274603": null,
+    "278175": {
+      "sourceRow": 278226,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "1407",
+      "DESTINATION_AIRPORT": "IAD",
+      "SCHEDULED_DEPARTURE": "1759",
+      "LATE_AIRCRAFT_DELAY": "97"
+    },
+    "156399": null,
+    "225285": {
+      "sourceRow": 225422,
+      "AIRLINE": "B6",
+      "FLIGHT_NUMBER": "1185",
+      "DESTINATION_AIRPORT": "RDU",
+      "SCHEDULED_DEPARTURE": "1820",
+      "LATE_AIRCRAFT_DELAY": "66"
+    },
+    "73427": {
+      "sourceRow": 73433,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "498",
+      "DESTINATION_AIRPORT": "SEA",
+      "SCHEDULED_DEPARTURE": "1840",
+      "LATE_AIRCRAFT_DELAY": "14"
+    },
+    "259256": null,
+    "309223": null,
+    "119807": {
+      "sourceRow": 119943,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "2311",
+      "DESTINATION_AIRPORT": "MIA",
+      "SCHEDULED_DEPARTURE": "1859",
+      "LATE_AIRCRAFT_DELAY": "138"
+    },
+    "229749": null,
+    "330292": null,
+    "209758": null,
+    "316382": null,
+    "23715": null,
+    "273521": null,
+    "348298": null,
+    "246149": {
+      "sourceRow": 245989,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "428",
+      "DESTINATION_AIRPORT": "FLL",
+      "SCHEDULED_DEPARTURE": "1830",
+      "LATE_AIRCRAFT_DELAY": "39"
+    },
+    "156481": {
+      "sourceRow": 156673,
+      "AIRLINE": "DL",
+      "FLIGHT_NUMBER": "2480",
+      "DESTINATION_AIRPORT": "ATL",
+      "SCHEDULED_DEPARTURE": "1930",
+      "LATE_AIRCRAFT_DELAY": "23"
+    }
+  }
+}
