@@ -1,1 +1,17 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64"><rect width="64" height="64" rx="16" fill="#132130"/><path d="M17 39 40 16l7 7-23 23H17Z" fill="#f2a43a"/><path d="m34 36 13-13v18l-6 6Z" fill="#3ec6d0"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="96 0 320 512" fill="none">
+  <title>Clearance control tower</title>
+  <g fill="#1d2952">
+    <rect x="226" width="59" height="20" rx="10"/>
+    <path d="M246 10h20v61h-20z"/>
+    <path d="M229 61h53c14 0 25 11 25 25v51H204V86c0-14 11-25 25-25Z"/>
+    <path d="M204 283h103v219H204z"/>
+    <path d="M132 117h248c15 0 25 12 22 27l-21 138c-2 12-12 21-24 21H155c-12 0-22-9-24-21l-21-138c-3-15 7-27 22-27Z"/>
+  </g>
+  <path fill="#91d9e8" d="M224 303h32v189h-32zM224 81h32v36h-32z"/>
+  <path fill="#7fc5d8" d="M256 303h31v189h-31zM256 81h31v36h-31z"/>
+  <path fill="#ffd64d" d="M129 137h253l-3 20H132zM147 264h217l-4 19H151z"/>
+  <path fill="#efbc3e" d="M256 137h126l-3 20H256zM256 264h108l-4 19H256z"/>
+  <path fill="#ffffff" d="M135 176h69v69h-59z"/>
+  <path fill="#e8e8e8" d="M224 176h63v69h-63zM307 176h70l-10 69h-60z"/>
+  <rect x="127" y="492" width="259" height="20" rx="10" fill="#1d2952"/>
+</svg>

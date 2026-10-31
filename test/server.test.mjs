@@ -62,3 +62,21 @@ test('recovery rejects a hard-constraint override and resets choice on new compa
  const valid=result.portfolio.options[0];await post(`/api/recovery/${created.id}/choose`,{optionId:valid.id,planHash:valid.hash,stateVersion:1});
  const rerun=await(await post(`/api/recovery/${created.id}/compare`,{forceTimeout:true})).json();assert.equal(rerun.selection,null);assert.equal(rerun.portfolio.turns,0);assert.equal(rerun.portfolio.options[0].assessments.length,0);
 });
+
+test('airport catalog, per-airport examples and geographic map assets are served',async()=>{
+ const airports=await(await fetch(origin+'/api/airports')).json();assert.equal(airports.airports.length,322);
+ const lax=await(await fetch(origin+'/api/recovery?airport=LAX')).json();assert.equal(lax.airport.code,'LAX');assert.equal(lax.limits.IATA_CODE,'LAX');assert.ok(lax.flights.every(f=>f.DESTINATION_AIRPORT==='LAX'));
+ const created=await(await post('/api/recovery',{airportCode:'LAX',index:0})).json();assert.equal(created.scenario.airport.code,'LAX');assert.equal(created.scenario.mapData.code,'LAX');
+ assert.ok(created.scenario.mapData.gates.length>0);
+ assert.deepEqual(created.scenario.mapData.gateBindings,lax.airport.gateBindings);
+ assert.equal(created.scenario.mapData.gateCoverage.mappedStandCount,9);
+ assert.equal(created.scenario.mapData.gateSource.license,'ODbL-1.0');
+ const compared=await(await post(`/api/recovery/${created.id}/compare`,{})).json();assert.ok(compared.portfolio.recommendedId);
+ for(const payload of Object.values(compared.maps))assert.deepEqual(payload.scenario.mapData.gateBindings,lax.airport.gateBindings);
+ const missing=await(await fetch(origin+'/api/airports/ADK')).json();assert.equal(missing.gates.length,0);assert.equal(missing.gateBindings.G1,null);
+ assert.equal((await fetch(origin+'/api/recovery?airport=ZZZ')).status,400);
+ const ppg=await(await fetch(origin+'/api/recovery?airport=PPG')).json();assert.equal(ppg.flights.length,0);assert.ok(ppg.airport.latitude);
+ for(const asset of ['/airport-map.html','/airport-map.js','/airport-map.css','/airport-geometry.mjs','/vendor/leaflet/leaflet.js','/vendor/leaflet/leaflet.css'])assert.equal((await fetch(origin+asset)).status,200);
+ const html=await fetch(origin+'/airport-map.html');assert.match(html.headers.get('content-security-policy'),/https:\/\/tile.openstreetmap.org/);assert.match(html.headers.get('content-security-policy'),/frame-ancestors 'self'/);
+ const home=await fetch(origin+'/');assert.ok(!home.headers.get('content-security-policy').includes('tile.openstreetmap.org'));
+});

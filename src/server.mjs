@@ -8,6 +8,7 @@ import {negotiate} from './agents.mjs';
 import {providerConfig} from './providers.mjs';
 import {parseCSV,qualifyingFlights} from './import.mjs';
 import {constraints,flightIndex,createRecoveryScenario,negotiateRecovery,chooseRecovery,recoveryMapPayload} from './recovery.mjs';
+import {airportCatalog,getAirport,airportSummaries,airportMapData} from './airports.mjs';
 
 const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 try{const env=await readFile(path.join(root,'.env'),'utf8');for(const line of env.split(/\r?\n/)){const m=line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^(['"])(.*)\1$/,'$2');}}catch{}
@@ -32,10 +33,18 @@ export const server=http.createServer(async(req,res)=>{
       if(!String(req.headers['content-type']||'').startsWith('application/json')){json(res,415,{error:'Use application/json.'});return;}
     }
     if(req.method==='GET'&&url.pathname==='/api/recovery'){
-      json(res,200,{dataset:{rows:flightIndex.totalRows,qualifying:flightIndex.qualifyingRows,jfkArrivals:flightIndex.jfkArrivalCount,sha256:flightIndex.sha256,sourceUrl:flightIndex.sourceUrl},workbook:constraints.source,flights:flightIndex.records.map((r,index)=>({index,sourceRow:r.sourceRow,...r.record})),limits:constraints.airport_capacity.find(a=>a.IATA_CODE==='JFK')});return;
+      const airport=getAirport(url.searchParams.get('airport')||'JFK'),records=airport.code==='JFK'?flightIndex.records:airport.records;
+      json(res,200,{dataset:{rows:flightIndex.totalRows,qualifying:flightIndex.qualifyingRows,jfkArrivals:flightIndex.jfkArrivalCount,airportArrivals:airport.arrivalCount,sha256:flightIndex.sha256,sourceUrl:flightIndex.sourceUrl},workbook:constraints.source,airport:airportMapData(airport.code),airports:airportSummaries(),flights:records.map((r,index)=>({index,sourceRow:r.sourceRow,...r.record})),limits:airport.capacity});return;
+    }
+    if(req.method==='GET'&&url.pathname==='/api/airports'){
+      json(res,200,{airports:airportSummaries(),sources:airportCatalog.sources,retrievedAt:airportCatalog.retrievedAt});return;
+    }
+    const airportRoute=url.pathname.match(/^\/api\/airports\/([A-Z]{3})$/);
+    if(req.method==='GET'&&airportRoute){
+      json(res,200,airportMapData(airportRoute[1]));return;
     }
     if(req.method==='POST'&&url.pathname==='/api/recovery'){
-      const b=await body(req),scenario=createRecoveryScenario(b.index??0,{closedStands:b.closedStands||[],arrivalFuel:b.arrivalFuel});
+      const b=await body(req),scenario=createRecoveryScenario(b.index??0,{airportCode:b.airportCode??'JFK',closedStands:b.closedStands||[],arrivalFuel:b.arrivalFuel});
       if(scenario.closedStands.some(id=>!scenario.stands.some(s=>s.id===id))||!Number.isFinite(scenario.target.arrivalFuel)||scenario.target.arrivalFuel<0)throw new Error('Invalid recovery inputs.');
       if(recoveries.size>=100)recoveries.delete(recoveries.keys().next().value);
       const s={id:randomUUID(),scenario,portfolio:null,selection:null,audit:[]};recoveries.set(s.id,s);json(res,201,recoverySnapshot(s));return;
@@ -105,10 +114,12 @@ export const server=http.createServer(async(req,res)=>{
       }
     }
     const files={'/':'recovery.html','/index.html':'recovery.html','/operations.html':'operations.html','/recovery.js':'recovery.js','/recovery.css':'recovery.css','/app.js':'app.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg','/airfield-theme.css':'airfield-theme.css','/jfk-plan.html':'jfk-plan.html','/jfk-plan.js':'jfk-plan.js','/jfk-demo.html':'jfk-demo.html','/jfk-demo.js':'jfk-demo.js','/jfk-base.css':'jfk-base.css','/jfk-connected.css':'jfk-connected.css','/jfk-replay.mjs':'jfk-replay.mjs'};
+    Object.assign(files,{'/airport-map.html':'airport-map.html','/airport-map.js':'airport-map.js','/airport-map.css':'airport-map.css','/airport-geometry.mjs':'airport-geometry.mjs','/vendor/leaflet/leaflet.js':'vendor/leaflet/leaflet.js','/vendor/leaflet/leaflet.css':'vendor/leaflet/leaflet.css'});
     if(req.method==='GET'&&files[url.pathname]){
       const file=files[url.pathname],mime=file.endsWith('.html')?'text/html':file.endsWith('.css')?'text/css':file.endsWith('.svg')?'image/svg+xml':'text/javascript';
-      const framePolicy=file==='jfk-plan.html'||file==='jfk-demo.html'?"'self'":"'none'";
-      res.writeHead(200,{'content-type':`${mime}; charset=utf-8`,'cache-control':'no-store','x-content-type-options':'nosniff','content-security-policy':`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors ${framePolicy}`});res.end(await readFile(path.join(root,'public',file)));return;
+      const framePolicy=['jfk-plan.html','jfk-demo.html','airport-map.html'].includes(file)?"'self'":"'none'";
+      const tileOrigin=file==='airport-map.html'?' https://tile.openstreetmap.org':'';
+      res.writeHead(200,{'content-type':`${mime}; charset=utf-8`,'cache-control':'no-store','referrer-policy':'strict-origin-when-cross-origin','x-content-type-options':'nosniff','content-security-policy':`default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:${tileOrigin}; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors ${framePolicy}`});res.end(await readFile(path.join(root,'public',file)));return;
     }
     json(res,404,{error:'Not found.'});
   }catch(error){if(!res.headersSent)json(res,400,{error:error.message});else res.end();}

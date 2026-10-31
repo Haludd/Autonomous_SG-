@@ -1,6 +1,7 @@
 import {createHash} from 'node:crypto';
 import {readFileSync} from 'node:fs';
 import {createScenario,clone} from './domain.mjs';
+import {getAirport,airportMapData} from './airports.mjs';
 
 export const constraints=JSON.parse(readFileSync(new URL('../data/operational-constraints.json',import.meta.url)));
 export const flightIndex=JSON.parse(readFileSync(new URL('../data/flights-index.json',import.meta.url)));
@@ -16,33 +17,44 @@ export function wakeSeconds(leader,follower){
 }
 
 export function createRecoveryScenario(index=0,overrides={}){
-  if(!Number.isInteger(index)||!flightIndex.records[index])throw new Error('Select an indexed JFK arrival.');
-  const source=clone(flightIndex.records[index]),r=source.record;
-  if(r.DESTINATION_AIRPORT!=='JFK'||!((num(r,'WEATHER_DELAY')??0)>15||(num(r,'LATE_AIRCRAFT_DELAY')??0)>20))throw new Error('The selected flight must qualify and arrive at JFK.');
-  const airport=constraints.airport_capacity.find(a=>a.IATA_CODE==='JFK');
+  const code=overrides.airportCode??'JFK',location=getAirport(code);
+  const records=code==='JFK'?flightIndex.records:location.records;
+  if(!Number.isInteger(index)||!records[index])throw new Error(`Select an indexed ${code} arrival.`);
+  const source=clone(records[index]),r=source.record;
+  if(r.DESTINATION_AIRPORT!==code||!((num(r,'WEATHER_DELAY')??0)>15||(num(r,'LATE_AIRCRAFT_DELAY')??0)>20))throw new Error(`The selected flight must qualify and arrive at ${code}.`);
+  const airport=constraints.airport_capacity.find(a=>a.IATA_CODE===code);
   const baseline=hhmm(r.SCHEDULED_ARRIVAL)+Math.max(0,num(r,'DEPARTURE_DELAY')??0),start=baseline-30;
   const s=createScenario('weather');
-  Object.assign(s,{id:'recovery',name:'JFK arrival recovery',clock:{hour:Math.floor(((start%1440)+1440)%1440/60),minute:((start%60)+60)%60},horizon:90,airport:{code:'JFK',name:'John F. Kennedy',timezone:'America/New_York'},capacity:clone(airport),source,baselineETA:30});
+  Object.assign(s,{id:'recovery',name:`${code} arrival recovery`,clock:{hour:Math.floor(((start%1440)+1440)%1440/60),minute:((start%60)+60)%60},horizon:airport.min_turnaround_min>35?110:90,airport:{code,name:location.name,timezone:code==='JFK'?'America/New_York':null,latitude:location.latitude,longitude:location.longitude},capacity:clone(airport),source,baselineETA:30,mapData:airportMapData(code)});
   const slots=[48,38,42,54,58,62];
   s.flights.forEach((f,i)=>Object.assign(f,{ready:20,scheduled:slots[i],latest:90,wake:i===2?'H':'M',fuel:7000,requiredDepartureFuel:4000,fuelRate:60,taxiMinutes:4,pushMinutes:2}));
-  s.stands=[...Array.from({length:9},(_,i)=>({id:`G${i+1}`,type:'gate',compatible:['M','H']})),{id:'R1',type:'remote',compatible:[]}];
+  s.spareGateIds=Array.from({length:airport.spare_gates_at_any_time},(_,i)=>`G${i+7}`);
+  s.stands=[...Array.from({length:6+s.spareGateIds.length},(_,i)=>({id:`G${i+1}`,type:'gate',compatible:['M','H']})),{id:'R1',type:'remote',compatible:[]}];
   s.arrivals=[{id:'IN1',callsign:`${r.AIRLINE} ${r.FLIGHT_NUMBER}`,gate:'G1',gateIn:30,clearAt:65,wake:'M',provenance:'historical_trigger'}];
   const holdingRate=ruleNumber('Holding fuel burn (narrowbody)')/60,tripFuel=6000,contingency=tripFuel*ruleNumber('Contingency fuel')/100;
   s.target={flightId:'IN1',aircraftClass:'narrowbody',holdingRate,tripFuel,finalReserve:holdingRate*ruleNumber('Final fuel reserve'),contingency,arrivalFuel:holdingRate*ruleNumber('Assumed spare fuel on arrival')+contingency,crewDutyElapsed:690,crewDutyMax:ruleNumber('Flight crew max duty')*60,groundShiftElapsed:410,groundShiftMax:ruleNumber('Ground crew shift')*60,gateNotice:ruleNumber('Gate change notice'),arrivalTaxi:4};
-  s.background=Array.from({length:31},(_,i)=>({id:`BG${i+1}`,time:i*3,runway:'13R',wake:'M',kind:'background'}));
-  s.activeRunways=['4L','4R','13R'];s.backgroundOccupiedGates=airport.gates-airport.spare_gates_at_any_time-6;
+  const geographicRunways=location.runways.filter(runway=>!runway.closedInSource).map(runway=>runway.lowIdent);
+  s.activeRunways=code==='JFK'?['4L','4R','13R']:Array.from({length:Math.min(airport.active_runways,Math.max(1,geographicRunways.length))},(_,i)=>geographicRunways[i]||`SIM-${i+1}`);
+  s.runwayRoles={departure:s.activeRunways[0],arrival:s.activeRunways[1]??s.activeRunways[0],background:s.activeRunways[2]??s.activeRunways[0]};
+  const reserved=[26,30,40,...slots,71,75,85,81,95];
+  const backgroundTimes=Array.from({length:31},(_,i)=>i*3).filter(t=>s.activeRunways.length>=3||!reserved.some(r=>Math.abs(r-t)<3));
+  const backgroundBudget=airport.max_runway_ops_per_hour>=60?31:Math.max(0,Math.floor(airport.max_runway_ops_per_hour*.5)-2);
+  s.background=backgroundTimes.slice(0,backgroundBudget).map((time,i)=>({id:`BG${i+1}`,time,runway:s.runwayRoles.background,wake:'M',kind:'background'}));
+  s.backgroundOccupiedGates=airport.gates-airport.spare_gates_at_any_time-6;
   s.closedStands=[];
   s.provenance={type:'historical_trigger',source:{...r,sourceRow:source.sourceRow},label:`DOT flight row ${source.sourceRow} · organizer limits · simulated current state`};
   s.assumptions=[
-    'One historical JFK arrival is the disruption. Other aircraft, gate occupancy, runway configuration and crew status are explicit scenario assumptions.',
+    `One historical ${code} arrival is the disruption. Other aircraft, gate occupancy, runway configuration and crew status are explicit scenario assumptions.`,
     'Baseline ETA = scheduled arrival + nonnegative departure delay. This is a simple scenario estimate, not a prediction of the historical outcome. Arrival delay is not added again.',
     'Aircraft type is absent. The target uses an assumed narrowbody, Large wake class, 6,000 kg trip fuel and 2,400 kg/hour holding burn.',
     'The workbook 45-minute arrival holding allowance includes the protected 30-minute final reserve. The 5% trip-fuel contingency is carried separately and remains protected. That leaves 15 minutes of discretionary holding.',
     'Target crew has already worked 690 minutes. The same crew is assumed to operate the onward departure after turnaround plus six minutes of pushback/taxi. Ground crew has worked 410 minutes.',
-    'Three active runway aliases and background operations are simulated. The airport movement cap is treated as an aggregate cap over each rolling 60-minute window.',
-    'The three spare gates are G7–G9 at decision time. Six other gates and 61 background occupied gates represent 67 occupied gates out of 70.',
+    `${s.activeRunways.length} runway(s) are active in the simulated configuration. Source runway coordinates are geographic context, not live availability. The airport movement cap applies to each rolling 60-minute window.`,
+    `The ${s.spareGateIds.length} spare gate aliases are ${s.spareGateIds.join(', ')}. Six modeled departures and ${s.backgroundOccupiedGates} background occupied gates use the workbook total of ${airport.gates} gates. Scenario aliases bind to distinct OpenStreetMap passenger gate points where available; assignments and occupancy are simulated.`,
+    `${s.mapData.gateCoverage.mappedStandCount}/${s.mapData.gateCoverage.totalStandCount} scenario gates have mapped source coordinates. Missing gate positions and movements needing them are hidden rather than placed at guessed offsets. These passenger gate points do not specify aircraft parking positions.`,
     'Routes are illustrative. No taxiway blockage, turbulence or passenger-connection data was supplied; these are not claimed as validated constraints.',
     'Ground overtime is allowed at 1.5 times a normalized wage per minute. Preference scores and the acceptance threshold of 70/100 are disclosed product choices, not workbook rules.',
+    'Geographic map: OpenStreetMap; runway endpoints: OurAirports. Map context is a current source snapshot and does not reconstruct the airport in 2015.',
     'All choices are planning and replay only. No airport instruction or physical movement is executed.'
   ];
   if(overrides.closedStands)s.closedStands=[...overrides.closedStands];
@@ -51,16 +63,16 @@ export function createRecoveryScenario(index=0,overrides={}){
 }
 
 export function buildRecoveryCandidates(s){
-  const spare=s.stands.find(g=>/^G[789]$/.test(g.id)&&!s.closedStands.includes(g.id))?.id||'G7';
+  const spare=s.stands.find(g=>s.spareGateIds.includes(g.id)&&!s.closedStands.includes(g.id))?.id||s.spareGateIds[0];
   return [
     {id:'gate',title:'Use a spare gate',strategy:`Preserve the arrival time and move to ${spare}.`,gate:spare,delay:0,resequenced:0},
     {id:'sequence',title:'Resequence departures',strategy:'Release G1 sooner by swapping two departures. Arrive four minutes later.',gate:'G1',delay:4,resequenced:2},
     {id:'hold',title:'Keep the original gate',strategy:'Hold for fourteen minutes while G1 clears. Preserve the departure sequence.',gate:'G1',delay:14,resequenced:0}
   ].map((choice,i)=>{
-    const departures=s.flights.map(f=>({flightId:f.id,pushback:f.scheduled-6,takeoff:f.scheduled,mode:'direct',standId:f.gate,runway:'4L'}));
+    const departures=s.flights.map(f=>({flightId:f.id,pushback:f.scheduled-6,takeoff:f.scheduled,mode:'direct',standId:f.gate,runway:s.runwayRoles.departure}));
     if(choice.id==='sequence')for(const d of departures)if(d.flightId==='F1'||d.flightId==='F2'){d.takeoff=d.flightId==='F1'?38:48;d.pushback=d.takeoff-6;}
     const gateIn=s.baselineETA+choice.delay,turnaround=s.capacity.min_turnaround_min,ready=gateIn+turnaround,nextDeparture=ready+6;
-    const plan={version:i+1,stateVersion:s.stateVersion,departures,arrivals:[{flightId:'IN1',standId:choice.gate,gateIn,clearAt:ready+2,landing:gateIn-s.target.arrivalTaxi,runway:'4R',noticeAt:s.now}],nextDeparture};
+    const plan={version:i+1,stateVersion:s.stateVersion,departures,arrivals:[{flightId:'IN1',standId:choice.gate,gateIn,clearAt:ready+2,landing:gateIn-s.target.arrivalTaxi,runway:s.runwayRoles.arrival,noticeAt:s.now}],nextDeparture};
     const fuelBurn=choice.delay*s.target.holdingRate,remainingFuel=s.target.arrivalFuel-fuelBurn,protectedFuel=s.target.finalReserve+s.target.contingency;
     const overtime=Math.max(0,s.target.groundShiftElapsed+ready-s.target.groundShiftMax);
     return {...choice,plan,hash:recoveryPlanHash(s,plan),metrics:{arrivalDelay:choice.delay,gateChanges:choice.gate==='G1'?0:1,resequenced:choice.resequenced,holdingFuel:Math.round(fuelBurn),remainingFuel,protectedFuel,fuelMargin:remainingFuel-protectedFuel,crewMargin:s.target.crewDutyMax-s.target.crewDutyElapsed-nextDeparture,overtime,overtimeCost:overtime*1.5,turnaround,gateIn,ready,nextDeparture}};
@@ -80,9 +92,9 @@ export function validateRecovery(s,option){
   const occupancy=p.departures.map(d=>({id:d.flightId,stand:d.standId,start:0,end:d.pushback+2}));
   occupancy.push({id:a.flightId,stand:a.standId,start:a.gateIn,end:a.clearAt});
   for(let i=0;i<occupancy.length;i++)for(let j=i+1;j<occupancy.length;j++)if(occupancy[i].stand===occupancy[j].stand&&occupancy[i].start<occupancy[j].end&&occupancy[j].start<occupancy[i].end)add('GROUND','GATE_CONFLICT',`${occupancy[i].stand} has overlapping occupancy.`);
-  if(s.stands.filter(g=>/^G[789]$/.test(g.id)&&!s.closedStands.includes(g.id)).length>s.capacity.spare_gates_at_any_time)add('GROUND','SPARE_GATES','More spare gates were introduced than the workbook permits.');
+  if(s.stands.filter(g=>s.spareGateIds.includes(g.id)&&!s.closedStands.includes(g.id)).length>s.capacity.spare_gates_at_any_time)add('GROUND','SPARE_GATES','More spare gates were introduced than the workbook permits.');
   for(const minute of occupancy.flatMap(o=>[o.start,o.end]))if(s.backgroundOccupiedGates+occupancy.filter(o=>o.start<=minute&&minute<o.end).length>s.capacity.gates)add('GROUND','GATE_CAPACITY','Airport-wide gate capacity exceeded.');
-  const movements=[...s.background,...p.departures.map(d=>({id:d.flightId,time:d.takeoff,runway:d.runway,wake:s.flights.find(f=>f.id===d.flightId)?.wake})),{id:a.flightId,time:a.landing,runway:a.runway,wake:'M'},{id:'ONWARD',time:p.nextDeparture,runway:'4L',wake:'M'}];
+  const movements=[...s.background,...p.departures.map(d=>({id:d.flightId,time:d.takeoff,runway:d.runway,wake:s.flights.find(f=>f.id===d.flightId)?.wake})),{id:a.flightId,time:a.landing,runway:a.runway,wake:'M'},{id:'ONWARD',time:p.nextDeparture,runway:s.runwayRoles.departure,wake:'M'}];
   if(s.activeRunways.length>s.capacity.active_runways||new Set(s.activeRunways).size!==s.activeRunways.length)add('ATC','ACTIVE_RUNWAYS','Active runway count exceeds the workbook limit.');
   if(movements.some(m=>!s.activeRunways.includes(m.runway)))add('ATC','RUNWAY_CLOSED','A movement uses an inactive runway.');
   for(const m of movements)if(movements.filter(n=>n.time>=m.time&&n.time<m.time+60).length>s.capacity.max_runway_ops_per_hour)add('ATC','RUNWAY_CAPACITY','Aggregate rolling-hour runway movements exceed the airport limit.');

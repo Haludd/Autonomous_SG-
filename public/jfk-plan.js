@@ -324,6 +324,14 @@ function receive(message){
   showEvents();render();
 }
 window.addEventListener('message',receive);
+window.addEventListener('message',event=>{
+  if(event.origin!==location.origin||event.source!==window.parent||event.data?.type!=='clearance:layout')return;
+  document.documentElement.classList.toggle('right-rail-open',Boolean(event.data.panels?.right));
+});
+document.addEventListener('keydown',event=>{
+  if(!canvasLayout||event.target.closest('input,select,textarea')||event.ctrlKey||event.metaKey||event.altKey)return;
+  if(event.key.toLowerCase()==='m'){event.preventDefault();send('clearance:map-only');}
+});
 $('surge').onclick=()=>send('clearance:run');
 $('inject').onclick=()=>send('clearance:tug-outage');
 $('play').onclick=()=>{if(!committed())return;if(minute>=data.scenario.horizon)minute=0;playing=!playing;$('play').textContent=playing?'Pause':data?.recovery?'Play preview':'Play plan';};

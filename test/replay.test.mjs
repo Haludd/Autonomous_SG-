@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {samplePath,aircraftAt,standIntervals,gateConflicts} from '../public/jfk-replay.mjs';
+import {samplePath,aircraftAt,recoveryArrivalAt,standIntervals,gateConflicts} from '../public/jfk-replay.mjs';
 import {createScenario,buildRunwayPlan,deterministicFallback,validatePlan} from '../src/domain.mjs';
 
 const geometry={gate:[0,0],remote:[10,10],tow:[[0,0],[10,0],[10,10]],taxi:[[10,10],[20,10],[20,30]],runway:[[20,30],[50,30]],towMinutes:4};
@@ -40,4 +40,21 @@ test('map occupancy and conflicts agree with authoritative plan checks',()=>{
 });
 test('default planning airport matches the displayed JFK schematic',()=>{
   assert.equal(createScenario().airport.code,'JFK');
+});
+
+test('missing map anchors hide replay positions while retaining operational phases and fuel',()=>{
+  const s=createScenario(),p=deterministicFallback(s).plan,f=s.flights[0],d={...p.departures[0],mode:'direct'};
+  const missing={gate:null,remote:null,tow:null,taxi:null,runway:geometry.runway,towMinutes:4};
+  for(const minute of [0,d.pushback+.5,d.takeoff-.1]){
+    const state=aircraftAt(f,d,minute,missing);
+    assert.equal(state.visible,false);assert.equal(state.x,null);assert.equal(state.y,null);
+    assert.equal(state.fuelNow,f.fuel-state.engineOn*f.fuelRate);
+  }
+  assert.equal(aircraftAt(f,d,d.takeoff,missing).visible,true);
+  const arrival={baselineLanding:10,landing:12,gateIn:16,ready:50,nextDeparture:56};
+  const phases=[[1,'INBOUND'],[11,'HOLDING'],[13,'ARRIVAL_TAXI'],[16,'TURNAROUND'],[51,'PUSHBACK'],[53,'TAXI'],[56,'DEPARTED']];
+  for(const [minute,phase] of phases){
+    const state=recoveryArrivalAt(arrival,minute,{approach:null,hold:null,arrivalTaxi:null,gate:null,departureTaxi:null,runway:null});
+    assert.equal(state.phase,phase);assert.equal(state.visible,false);assert.equal(state.x,null);assert.equal(state.y,null);
+  }
 });

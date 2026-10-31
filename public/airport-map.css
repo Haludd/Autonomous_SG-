@@ -1,0 +1,30 @@
+html,body,.app,.main,.mapwrap { height:100%; }
+#geo-map { position:absolute; inset:0; z-index:0; background:#0f1922; isolation:isolate; font-family:inherit; }
+#geo-map .leaflet-tile-pane { filter:invert(1) hue-rotate(180deg) saturate(.35) brightness(.76) contrast(1.08); }
+.leaflet-container { cursor:grab; }.leaflet-container:active { cursor:grabbing; }
+.geographic-mode { position:absolute; top:175px; left:50%; transform:translateX(-50%); z-index:3; display:flex; align-items:center; flex-direction:column; gap:8px; pointer-events:none; }
+.geographic-mode .seg { pointer-events:auto; border-radius:8px; box-shadow:0 4px 16px #0005; background:#0e1821ed; padding:3px; }
+.geographic-mode button { border-radius:5px; font-size:10px; padding:8px 10px; }
+.geographic-mode .seg button[aria-pressed=true] { background:#1c3945; color:var(--gnd); }
+#basemap-status { font:8px var(--f-mono); color:#b7cbd7; background:#0e1821e8; border:1px solid #304454; padding:6px 10px; border-radius:99px; max-width:360px; text-align:center; }
+.map-attribution { position:absolute; z-index:4; right:12px; bottom:29px; border:1px solid #304454; border-radius:5px; background:#0a121af2; color:#a9bdcd; font:9px/1.7 var(--f-mono); padding:5px 8px; max-width:calc(100% - 24px); text-align:right; }
+.map-attribution a { color:#bedae6; text-decoration:underline; }.map-attribution span { display:block; font-size:8px; color:#97aebe; }
+.runway-label { background:#142432e8; border:1px solid #51687a; color:#e4edf3; font:9px var(--f-mono); border-radius:4px; padding:3px 5px; white-space:nowrap; width:max-content!important; height:auto!important; }
+.airport-center-label { color:#c4d6e2; font:11px var(--f-mono); white-space:nowrap; text-shadow:0 1px 4px #000; width:max-content!important; }
+.scenario-stand { box-sizing:border-box; border-radius:50%; border:1.5px dashed var(--gnd); background:#10242ee8; color:var(--gnd); font:9px var(--f-mono); }
+.gate-ref { display:none; position:absolute; left:13px; top:-4px; background:#10242ef0; border:1px solid #345b69; border-radius:3px; padding:2px 4px; white-space:nowrap; pointer-events:none; }
+.gate-labels-visible .gate-ref { display:block; }
+.scenario-stand.occupied { border-style:solid; }.scenario-stand.closed { border-color:var(--alert); color:var(--alert); }
+.geo-aircraft { color:var(--twr); background:none; border:0; }.geo-aircraft.arrival { color:var(--sen); }
+.geo-aircraft .aircraft-body { width:28px; height:28px; filter:drop-shadow(0 2px 3px #000); transform-origin:center; }
+.geo-aircraft .aircraft-label { position:absolute; left:29px; top:-4px; font:10px var(--f-mono); white-space:nowrap; text-shadow:0 1px 4px #000,1px 0 3px #000; }
+.aircraft-label small { display:block; color:#b2c5d2; font-size:8px; margin-top:3px; }
+.geo-aircraft.selected .aircraft-body { outline:1px solid var(--sen); outline-offset:5px; border-radius:50%; }
+.leaflet-tooltip { color:#deebf4; background:#0e1821f5; border:1px solid #3a5669; box-shadow:0 3px 10px #0006; font:10px var(--f-mono); }
+.leaflet-tooltip-top:before { border-top-color:#3a5669; }
+.canvas-layout .map-tools,.canvas-layout header,.canvas-layout .replay,.canvas-layout .legend { z-index:3; }
+.canvas-layout .info { color:#d9e3ea; border:1px solid #3a5669; box-shadow:0 7px 25px #0007; }
+.info .h { display:flex; justify-content:space-between; align-items:center; gap:10px; }.info .h button { color:#b1c3cf; background:transparent; cursor:pointer; border:0; font-size:20px; }
+.info a { color:var(--gnd); }
+@media(max-width:900px){.geographic-mode{top:230px}.map-attribution{font-size:8px;bottom:29px}.map-attribution span{font-size:7px}}
+@media(max-width:600px){.geographic-mode{top:232px}.map-attribution{bottom:98px;right:10px;font-size:7px;max-width:calc(100% - 20px)}.map-attribution span{font-size:6px}.canvas-layout .legend{bottom:250px}.canvas-layout .replay{bottom:203px}.canvas-layout header{bottom:132px}.geographic-mode button{font-size:9px;padding:7px 9px}#basemap-status{font-size:7px;max-width:300px}}

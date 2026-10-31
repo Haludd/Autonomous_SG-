@@ -11,31 +11,37 @@ export function samplePath(points,fraction){
   return {x:points[0][0],y:points[0][1],heading:0};
 }
 
+function sourcePosition(points,fraction){
+  if(!points?.length||points.some(point=>!Array.isArray(point)||point.length!==2||!point.every(Number.isFinite)))return {x:null,y:null,heading:0,visible:false,mapPositionUnavailable:true};
+  return {...samplePath(points,fraction),visible:true};
+}
+
 export function aircraftAt(flight,departure,minute,geometry){
-  const parked={...samplePath([geometry.gate],0),phase:'GATE',engineOn:0,visible:true};
+  const parked={...sourcePosition([geometry.gate],0),phase:'GATE',engineOn:0};
   if(!departure)return parked;
   let state;
   const towEnd=departure.towStart+geometry.towMinutes;
-  if(departure.mode==='remote'&&minute>=departure.towStart&&minute<towEnd)state={...samplePath(geometry.tow,(minute-departure.towStart)/geometry.towMinutes),phase:'TOW'};
-  else if(minute<departure.pushback)state=departure.mode==='remote'&&minute>=towEnd?{...samplePath([geometry.remote],0),phase:'REMOTE'}:parked;
+  if(departure.mode==='remote'&&minute>=departure.towStart&&minute<towEnd)state={...sourcePosition(geometry.tow,(minute-departure.towStart)/geometry.towMinutes),phase:'TOW'};
+  else if(minute<departure.pushback)state=departure.mode==='remote'&&minute>=towEnd?{...sourcePosition([geometry.remote],0),phase:'REMOTE'}:parked;
   else if(minute<departure.takeoff){
     const movingDuration=flight.pushMinutes+flight.taxiMinutes;
     const elapsed=minute-departure.pushback;
-    state={...samplePath(geometry.taxi,elapsed/movingDuration),phase:elapsed<flight.pushMinutes?'PUSHBACK':elapsed>=movingDuration?'HOLD':'TAXI'};
-  }else state={...samplePath(geometry.runway,(minute-departure.takeoff)/0.8),phase:'DEPARTED',visible:minute<departure.takeoff+0.8};
+    state={...sourcePosition(geometry.taxi,elapsed/movingDuration),phase:elapsed<flight.pushMinutes?'PUSHBACK':elapsed>=movingDuration?'HOLD':'TAXI'};
+  }else {const position=sourcePosition(geometry.runway,(minute-departure.takeoff)/0.8);state={...position,phase:'DEPARTED',visible:position.visible&&minute<departure.takeoff+0.8};}
   const engineOn=clamp(minute-departure.pushback,0,departure.takeoff-departure.pushback);
   return {...state,visible:state.visible!==false,engineOn,fuelNow:flight.fuel-engineOn*flight.fuelRate,plannedMargin:flight.fuel-(departure.takeoff-departure.pushback)*flight.fuelRate-flight.requiredDepartureFuel};
 }
 
-// Counterfactual arrival/turnaround replay. Geometry is schematic, timing is plan data.
+// Counterfactual arrival/turnaround replay. Missing map anchors remain invisible.
 export function recoveryArrivalAt(arrival,minute,geometry){
   const {baselineLanding,landing,gateIn,ready,nextDeparture}=arrival;
-  if(minute<baselineLanding)return {...samplePath(geometry.approach,minute/Math.max(1,baselineLanding)),phase:'INBOUND',visible:true};
-  if(minute<landing){const a=(minute-baselineLanding)*Math.PI/2;return {x:geometry.hold[0]+28*Math.cos(a),y:geometry.hold[1]+18*Math.sin(a),heading:a*180/Math.PI+90,phase:'HOLDING',visible:true};}
-  if(minute<gateIn)return {...samplePath(geometry.arrivalTaxi,(minute-landing)/Math.max(.1,gateIn-landing)),phase:'ARRIVAL_TAXI',visible:true};
-  if(minute<ready)return {...samplePath([geometry.gate],0),phase:'TURNAROUND',visible:true};
-  if(minute<nextDeparture)return {...samplePath(geometry.departureTaxi,(minute-ready)/Math.max(.1,nextDeparture-ready)),phase:minute<ready+2?'PUSHBACK':'TAXI',visible:true};
-  return {...samplePath(geometry.runway,(minute-nextDeparture)/.8),phase:'DEPARTED',visible:minute<nextDeparture+.8};
+  if(minute<baselineLanding)return {...sourcePosition(geometry.approach,minute/Math.max(1,baselineLanding)),phase:'INBOUND'};
+  if(minute<landing){if(!geometry.hold)return {...sourcePosition(null,0),phase:'HOLDING'};const a=(minute-baselineLanding)*Math.PI/2;return {x:geometry.hold[0]+28*Math.cos(a),y:geometry.hold[1]+18*Math.sin(a),heading:a*180/Math.PI+90,phase:'HOLDING',visible:true};}
+  if(minute<gateIn)return {...sourcePosition(geometry.arrivalTaxi,(minute-landing)/Math.max(.1,gateIn-landing)),phase:'ARRIVAL_TAXI'};
+  if(minute<ready)return {...sourcePosition([geometry.gate],0),phase:'TURNAROUND'};
+  if(minute<nextDeparture)return {...sourcePosition(geometry.departureTaxi,(minute-ready)/Math.max(.1,nextDeparture-ready)),phase:minute<ready+2?'PUSHBACK':'TAXI'};
+  const position=sourcePosition(geometry.runway,(minute-nextDeparture)/.8);
+  return {...position,phase:'DEPARTED',visible:position.visible&&minute<nextDeparture+.8};
 }
 
 export function standIntervals(scenario,plan){
