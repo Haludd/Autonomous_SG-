@@ -1,3 +1,4 @@
+import {liveRecoveryConfig,negotiateLiveRecovery} from './live-recovery.mjs';
 import http from 'node:http';
 import {readFile} from 'node:fs/promises';
 import {fileURLToPath} from 'node:url';
@@ -13,7 +14,7 @@ const root=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'..');
 try{const env=await readFile(path.join(root,'.env'),'utf8');for(const line of env.split(/\r?\n/)){const m=line.match(/^([A-Z_][A-Z0-9_]*)=(.*)$/);if(m&&!process.env[m[1]])process.env[m[1]]=m[2].replace(/^(['"])(.*)\1$/,'$2');}}catch{}
 const sessions=new Map();
 const recoveries=new Map();
-function recoverySnapshot(s){return {id:s.id,scenario:s.scenario,portfolio:s.portfolio,selection:s.selection,audit:s.audit,maps:s.portfolio?Object.fromEntries(s.portfolio.options.map(o=>[o.id,recoveryMapPayload(s.scenario,o,s.portfolio,s.selection)])):null};}
+function recoverySnapshot(s){return {id:s.id,scenario:s.scenario,portfolio:s.portfolio,selection:s.selection,audit:s.audit,running:Boolean(s.running),maps:s.portfolio?Object.fromEntries(s.portfolio.options.map(o=>[o.id,recoveryMapPayload(s.scenario,o,s.portfolio,s.selection)])):null};}
 let catalog={airports:[],airlines:[]};
 for(const type of ['airports','airlines'])try{catalog[type]=parseCSV(await readFile(path.join(root,'data',`${type}.csv`),'utf8'));}catch{}
 const json=(res,status,data)=>{res.writeHead(status,{'content-type':'application/json; charset=utf-8','cache-control':'no-store'});res.end(JSON.stringify(data));};
@@ -32,7 +33,7 @@ export const server=http.createServer(async(req,res)=>{
       if(!String(req.headers['content-type']||'').startsWith('application/json')){json(res,415,{error:'Use application/json.'});return;}
     }
     if(req.method==='GET'&&url.pathname==='/api/recovery'){
-      json(res,200,{dataset:{rows:flightIndex.totalRows,qualifying:flightIndex.qualifyingRows,jfkArrivals:flightIndex.jfkArrivalCount,sha256:flightIndex.sha256,sourceUrl:flightIndex.sourceUrl},workbook:constraints.source,flights:flightIndex.records.map((r,index)=>({index,sourceRow:r.sourceRow,...r.record})),limits:constraints.airport_capacity.find(a=>a.IATA_CODE==='JFK')});return;
+      json(res,200,{live:liveRecoveryConfig(),dataset:{rows:flightIndex.totalRows,qualifying:flightIndex.qualifyingRows,jfkArrivals:flightIndex.jfkArrivalCount,sha256:flightIndex.sha256,sourceUrl:flightIndex.sourceUrl},workbook:constraints.source,flights:flightIndex.records.map((r,index)=>({index,sourceRow:r.sourceRow,...r.record})),limits:constraints.airport_capacity.find(a=>a.IATA_CODE==='JFK')});return;
     }
     if(req.method==='POST'&&url.pathname==='/api/recovery'){
       const b=await body(req),scenario=createRecoveryScenario(b.index??0,{closedStands:b.closedStands||[],arrivalFuel:b.arrivalFuel});
@@ -45,11 +46,29 @@ export const server=http.createServer(async(req,res)=>{
       const s=recoveries.get(recoveryRoute[1]);if(!s)throw new Error('Recovery session expired. Reload the flight.');
       const action=recoveryRoute[2];
       if(req.method==='GET'&&!action){json(res,200,recoverySnapshot(s));return;}
+      if(req.method==='POST'&&['run','compare','choose'].includes(action)&&s.running){json(res,409,{error:'Wait for the current recovery evaluation to finish.'});return;}
+      if(req.method==='POST'&&action==='run'){
+        await body(req);
+        if(s.running){json(res,409,{error:'Wait for the current recovery evaluation to finish.'});return;}
+        if(!liveRecoveryConfig().available){json(res,400,{error:'Configure a separate Claude API key and model for each role.'});return;}
+        s.running=true;s.portfolio=null;s.selection=null;
+        const controller=new AbortController();
+        const disconnected=()=>controller.abort();res.on('close',disconnected);
+        res.writeHead(200,{'content-type':'text/event-stream','cache-control':'no-cache','connection':'keep-alive','x-accel-buffering':'no'});
+        const write=(type,data)=>{if(!res.destroyed)res.write(`event: ${type}\ndata: ${JSON.stringify(data)}\n\n`);};
+        const heartbeat=setInterval(()=>{if(!res.destroyed)res.write(': heartbeat\n\n');},10000);
+        try{
+          const portfolio=await negotiateLiveRecovery(clone(s.scenario),{signal:controller.signal,onEvent:e=>write('progress',e)});
+          controller.signal.throwIfAborted();s.portfolio=portfolio;s.audit.push({type:'comparison',time:new Date().toISOString(),portfolio:clone(portfolio)});
+          s.running=false;write('result',recoverySnapshot(s));
+        }catch{if(!res.destroyed)write('failure',{error:'Live evaluation was interrupted. Evaluate again before selecting a plan.'});}
+        finally{s.running=false;clearInterval(heartbeat);res.off('close',disconnected);res.end();}return;
+      }
       if(req.method==='POST'&&action==='compare'){
-        const b=await body(req);s.portfolio=negotiateRecovery(s.scenario,{forceTimeout:Boolean(b.forceTimeout)});s.selection=null;s.audit.push({type:'comparison',time:new Date().toISOString(),portfolio:clone(s.portfolio)});json(res,200,recoverySnapshot(s));return;
+        const b=await body(req);if(s.running){json(res,409,{error:'Wait for the current recovery evaluation to finish.'});return;}s.portfolio=negotiateRecovery(s.scenario,{forceTimeout:Boolean(b.forceTimeout)});s.selection=null;s.audit.push({type:'comparison',time:new Date().toISOString(),portfolio:clone(s.portfolio)});json(res,200,recoverySnapshot(s));return;
       }
       if(req.method==='POST'&&action==='choose'){
-        s.selection=chooseRecovery(s.scenario,s.portfolio,await body(req));s.portfolio.selectedId=s.selection.optionId;s.audit.push({type:'human_selection',...s.selection});json(res,200,recoverySnapshot(s));return;
+        const b=await body(req);if(s.running){json(res,409,{error:'Wait for the current recovery evaluation to finish.'});return;}s.selection=chooseRecovery(s.scenario,s.portfolio,b);s.portfolio.selectedId=s.selection.optionId;s.audit.push({type:'human_selection',...s.selection});json(res,200,recoverySnapshot(s));return;
       }
       if(req.method==='GET'&&action==='export'){
         res.writeHead(200,{'content-type':'application/json','content-disposition':'attachment; filename="clearance-recovery-audit.json"','cache-control':'no-store'});res.end(JSON.stringify({schemaVersion:2,dataset:{sourceUrl:flightIndex.sourceUrl,sha256:flightIndex.sha256,rows:flightIndex.totalRows},workbook:constraints.source,...recoverySnapshot(s)},null,2));return;
@@ -104,7 +123,7 @@ export const server=http.createServer(async(req,res)=>{
         json(res,200,{baseline,reference,negotiated:session.result?.metrics??null,stateVersion:session.scenario.stateVersion});return;
       }
     }
-    const files={'/':'recovery.html','/index.html':'recovery.html','/operations.html':'operations.html','/recovery.js':'recovery.js','/recovery.css':'recovery.css','/app.js':'app.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg','/airfield-theme.css':'airfield-theme.css','/jfk-plan.html':'jfk-plan.html','/jfk-plan.js':'jfk-plan.js','/jfk-demo.html':'jfk-demo.html','/jfk-demo.js':'jfk-demo.js','/jfk-base.css':'jfk-base.css','/jfk-connected.css':'jfk-connected.css','/jfk-replay.mjs':'jfk-replay.mjs'};
+    const files={'/':'recovery.html','/index.html':'recovery.html','/operations.html':'operations.html','/agent-conversation.mjs':'agent-conversation.mjs','/recovery.js':'recovery.js','/recovery.css':'recovery.css','/app.js':'app.js','/styles.css':'styles.css','/favicon.svg':'favicon.svg','/airfield-theme.css':'airfield-theme.css','/jfk-plan.html':'jfk-plan.html','/jfk-plan.js':'jfk-plan.js','/jfk-demo.html':'jfk-demo.html','/jfk-demo.js':'jfk-demo.js','/jfk-base.css':'jfk-base.css','/jfk-connected.css':'jfk-connected.css','/jfk-replay.mjs':'jfk-replay.mjs'};
     if(req.method==='GET'&&files[url.pathname]){
       const file=files[url.pathname],mime=file.endsWith('.html')?'text/html':file.endsWith('.css')?'text/css':file.endsWith('.svg')?'image/svg+xml':'text/javascript';
       const framePolicy=file==='jfk-plan.html'||file==='jfk-demo.html'?"'self'":"'none'";

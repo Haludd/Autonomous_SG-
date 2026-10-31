@@ -16,6 +16,31 @@ node src/server.mjs
 
 Open http://127.0.0.1:4173. On this Mac, `start.command` also locates the bundled Codex Node runtime. The server listens on loopback only.
 
+## Live Claude recovery agents
+
+The main recovery website supports three independent Claude clients. Copy the six role settings from `.env.example` into the root `.env` and set each role’s own key and an accessible model ID supporting Claude JSON outputs:
+
+```dotenv
+ATC_ANTHROPIC_API_KEY=your-atc-key
+ATC_ANTHROPIC_MODEL=your-model-id
+PILOT_ANTHROPIC_API_KEY=your-pilot-key
+PILOT_ANTHROPIC_MODEL=your-model-id
+GROUND_ANTHROPIC_API_KEY=your-ground-key
+GROUND_ANTHROPIC_MODEL=your-model-id
+```
+
+Restart `npm start`. Open **Inputs → Agent execution** and select **Live Claude agents** (the default when all roles are configured), then **Evaluate three plans**. The Agents panel shows progress; Decision log receives each actual response as it arrives. Final options and map previews retain the existing human selection workflow. With missing configuration, live mode is disabled and local policy mode remains available. Keys stay on the server; the browser and exported audit receive only model names and configuration status. Global legacy provider keys are never substituted for role credentials.
+
+Live agents assess the three existing options with independent prompts and histories; later rounds include previous-round peer messages. Calculated efficiency scores remain code-owned, with a 70/100 acceptance threshold. Claude may object to eligible plans, but cannot override hard findings or change plan hashes. At most three rounds/nine requests run, with a 25-second request limit and 90-second overall limit, without automatic retries. API failure or exhausted negotiation produces a labelled deterministic fallback; missing responses are never invented. Disconnecting aborts the run and leaves no selectable incomplete result. Audits include real assessments, model identities, token usage when supplied, and sanitized failure reasons.
+
+No MCP server is required. Automated tests use mock provider responses and do not spend API credits or establish live model quality.
+
+## Visual agent conversation
+
+Switch **Airfield map → Agent conversation** above the map to see ATC, Pilot and Ground as three participants at a shared planning table. Live evaluation opens this view automatically. Speech panels quote the recorded assessment for the current plan; the plan tabs switch which alternative is discussed. The round selector follows live progress or replays an earlier round, including actual position changes and the peer preferences recorded as received. Failed agents have no invented speech or vote.
+
+Agents review concurrently within each round. The coordinator relays complete previous-round messages into the next live round; this is not direct chat or a transcript of hidden model reasoning. The final outcome shows agreement, deterministic fallback, or human review, followed by the recorded human choice. **What am I testing?** explains the expected behavior inside the view.
+
 ## Demonstration
 
 1. Select **Evaluate three plans**. The default historical trigger is B6 906, ORD → JFK, 23 December 2015, source CSV row 340659.
@@ -58,7 +83,7 @@ The CSV has no current gates, complete airport traffic, aircraft type, onboard f
 
 ## Independent agents and agreement
 
-The recovery desk currently uses **three separate local policy agents; it makes no LLM calls**. Each role has its own assessment function and history. Its efficiency opinions are transparent policy calculations, not model confidence, probabilities or measured performance.
+In **Local policy agents** mode, the recovery desk uses three separate deterministic agents and makes no LLM calls. **Live Claude agents** mode connects the role-specific clients described above. Each role has its own assessment function and history. Its efficiency opinions are transparent policy calculations, not model confidence, probabilities or measured performance.
 
 Each turn contains exactly one structured message per role covering all three options. Turn one supplies preferences and assessments. The next turn shares peer preferences and confirms the same option hashes. An option has consensus only when all three accept its exact plan and scenario identity. The default completes in two turns (six messages). Runs stop after three turns (nine messages).
 
@@ -82,7 +107,7 @@ The navy/slate palette and JFK schematic are adapted from the supplied HTML, pre
 
 Every option has its own map payload. Switching resets the visualization clock and route/stand state to the selected option. Hard-invalid options are inspectable but cannot be replayed or chosen. A human-chosen option is explicitly marked. Replay does not advance the authoritative planning state or execute movements.
 
-The earlier departure sandbox remains at `/operations.html`. Its optional Claude/Gemini adapters and original demonstration are preserved there, with documentation in `reference/DEPARTURE-SANDBOX.md`. That legacy sandbox uses its original simplified fixture; it is not the updated workbook-compliant recovery workflow. Live-provider adapters are not connected to the new three-option recovery desk. No live LLM performance has been claimed or tested without credentials.
+The earlier departure sandbox remains at `/operations.html`. Its optional Claude/Gemini adapters and original demonstration are preserved there, with documentation in `reference/DEPARTURE-SANDBOX.md`. That legacy sandbox uses its original simplified fixture; it is not the updated workbook-compliant recovery workflow. The recovery desk uses its own role-specific Claude adapter; the legacy Claude/Gemini adapters remain separate. No live LLM performance has been claimed or tested without credentials.
 
 ## Verification and layout
 

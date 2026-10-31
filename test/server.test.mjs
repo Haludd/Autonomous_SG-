@@ -62,3 +62,26 @@ test('recovery rejects a hard-constraint override and resets choice on new compa
  const valid=result.portfolio.options[0];await post(`/api/recovery/${created.id}/choose`,{optionId:valid.id,planHash:valid.hash,stateVersion:1});
  const rerun=await(await post(`/api/recovery/${created.id}/compare`,{forceTimeout:true})).json();assert.equal(rerun.selection,null);assert.equal(rerun.portfolio.turns,0);assert.equal(rerun.portfolio.options[0].assessments.length,0);
 });
+
+test('live recovery streams real role responses, locks mutations and exports no credentials',async()=>{
+ const roles=['ATC','PILOT','GROUND'],saved={};
+ for(const role of roles)for(const suffix of ['API_KEY','MODEL']){const name=`${role}_ANTHROPIC_${suffix}`;saved[name]=process.env[name];process.env[name]=suffix==='API_KEY'?`${role}-private`:'test-model';}
+ const nativeFetch=globalThis.fetch;let unlock;const gate=new Promise(resolve=>unlock=resolve);const keys=[];
+ globalThis.fetch=async(url,init)=>{
+  if(url!=='https://api.anthropic.com/v1/messages')return nativeFetch(url,init);
+  keys.push(init.headers['x-api-key']);await gate;
+  const payload=JSON.parse(JSON.parse(init.body).messages[0].content);
+  return new Response(JSON.stringify({stop_reason:'end_turn',usage:{input_tokens:10,output_tokens:20},content:[{type:'text',text:JSON.stringify({stateVersion:payload.stateVersion,preferredOptionId:'gate',assessments:payload.options.map(o=>({optionId:o.id,planHash:o.hash,decision:'ACCEPT',explanation:'Reviewed independently.'}))})}]}),{status:200});
+ };
+ try{
+  const cfg=await(await fetch(origin+'/api/recovery')).json();assert.equal(cfg.live.available,true);assert.ok(!JSON.stringify(cfg).includes('private'));
+  const s=await(await post('/api/recovery',{})).json();const response=await post(`/api/recovery/${s.id}/run`,{});
+  assert.match(response.headers.get('content-type'),/text\/event-stream/);
+  assert.equal((await post(`/api/recovery/${s.id}/compare`,{})).status,409);assert.equal((await post(`/api/recovery/${s.id}/choose`,{})).status,409);assert.equal((await post(`/api/recovery/${s.id}/run`,{})).status,409);
+  unlock();const stream=await response.text();assert.match(stream,/event: progress/);assert.match(stream,/event: result/);assert.ok(!stream.includes('private'));
+  assert.equal(keys.length,6);assert.equal(new Set(keys).size,3);
+  const current=await(await fetch(`${origin}/api/recovery/${s.id}`)).json();assert.equal(current.running,false);assert.equal(current.portfolio.mode,'live');assert.equal(current.portfolio.status,'consensus');
+  const o=current.portfolio.options[0];assert.equal((await post(`/api/recovery/${s.id}/choose`,{optionId:o.id,planHash:o.hash,stateVersion:1})).status,200);
+  const audit=await(await fetch(`${origin}/api/recovery/${s.id}/export`)).text();assert.ok(audit.includes('test-model'));assert.ok(!audit.includes('private'));
+ }finally{unlock();globalThis.fetch=nativeFetch;for(const [key,value] of Object.entries(saved)){if(value===undefined)delete process.env[key];else process.env[key]=value;}}
+});
