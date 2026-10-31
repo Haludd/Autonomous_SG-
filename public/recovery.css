@@ -121,7 +121,7 @@ summary::-webkit-details-marker { display: none; }
 .map-tabs:empty { display: none; }
 .map-tabs button { padding: 8px 9px; border: 1px solid transparent; border-radius: 6px; background: transparent; color: #a8b8c4; font: 9px/1.5 var(--mono); text-align: center; white-space: nowrap; }
 .map-tabs button[aria-pressed=true] { border-color: #346773; color: var(--ground); background: #193541; }
-#map-status { color: #b4c7d4; background: #0e1821cc; border: 1px solid #263a48; border-radius: 99px; padding: 6px 10px; font: 8px var(--mono); text-align: center; white-space: nowrap; }
+#map-status { color: #b4c7d4; font: inherit; white-space: nowrap; overflow:hidden; text-overflow:ellipsis; }
 .map-welcome { position: absolute; left: 50%; bottom: 266px; transform: translateX(-50%); display: flex; align-items: center; gap: 10px; width: max-content; max-width: calc(100vw - 50px); padding: 13px 17px; background: #0e1821e8; border: 1px solid #304454; border-radius: 10px; box-shadow: 0 5px 20px #0004; pointer-events: none; font-weight: 550; }
 .map-welcome small { display: block; color: #9eb0be; font-size: 10px; font-weight: 400; margin-top: 4px; }
 .map-welcome-dot { width: 8px; height: 8px; background: var(--ground); box-shadow: 0 0 0 5px #3ec6d015; border-radius: 50%; flex-shrink: 0; }
@@ -181,6 +181,12 @@ summary::-webkit-details-marker { display: none; }
 #message-count { display: block; color: #9bb0c0; font: 9px var(--mono); margin-top: 10px; }
 pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #9cb1c1; font: 9px/1.8 var(--mono); max-height: 280px; overflow: auto; }
 .bottom { position: fixed; z-index: 8; bottom: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 14px; height: 25px; padding: 0 18px; color: #91a9bb; background: linear-gradient(transparent, #0a121ade); font: 8px var(--mono); pointer-events: none; }
+.bottom > span { flex:1; min-width:0; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; }
+.bottom .desk-status { display:flex; align-items:center; gap:8px; }
+.bottom .connection-dot { flex-shrink:0; margin-right:0; }
+#coordination-label { flex-shrink:0; }
+#map-context-status { text-align:center; }
+#selection-footer { text-align:right; }
 .toast { position: fixed; bottom: 116px; left: 50%; transform: translateX(-50%); max-width: 440px; width: max-content; padding: 12px 16px; background: #163341f5; color: var(--text); border: 1px solid var(--ground); border-radius: 10px; font-size: 11px; line-height: 1.6; z-index: 30; display: none; box-shadow: 0 6px 24px #0006; }
 .toast.show { display: block; }.toast.error { border-color: var(--bad); }
 
@@ -201,7 +207,7 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #9cb1c1; font: 9px/
   .brand { font-size: 23px; grid-template-columns: 28px auto 5px; }.brand img { width: 28px; height: 38px; }.brand-caption { font-size: 6px; letter-spacing: 1.6px; }
   .export-button { width: 36px; padding: 8px; }.export-button span { display: none; }.header-actions { gap: 7px; }
   .left-rail, .right-rail, .rail-handle { top: 94px; }.map-toolbar { top: 150px; max-width: calc(100vw - 30px); }.map-tabs button { font-size: 9px; padding: 8px; }
-  .map-welcome { bottom: 290px; }.bottom span:nth-child(2) { display: none; }
+  .map-welcome { bottom: 290px; }.bottom > span:nth-child(2) { display: none; }
 }
 @media (max-width: 600px) {
   :root { --left-width: min(340px, calc(100vw - 24px)); --right-width: min(340px, calc(100vw - 24px)); --edge: 12px; }
@@ -219,5 +225,5 @@ pre { white-space: pre-wrap; overflow-wrap: anywhere; color: #9cb1c1; font: 9px/
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { transition: none !important; scroll-behavior: auto !important; }
 }
-@media(max-width:900px){.header-flight #source-label{display:none}.airport-picker{min-width:130px;max-width:150px}.header-flight strong{font-size:11px}}
+@media(max-width:900px){.header-flight #source-label{display:none}.airport-picker{min-width:130px;max-width:150px}.header-flight strong{font-size:11px}#coordination-label{display:none}}
 @media(max-width:600px){.workspace-header{height:108px;row-gap:9px}.airport-picker{order:3;max-width:175px;flex:1}.airport-picker label{display:none}.header-flight{order:4!important;flex:1!important;flex-basis:auto!important;padding-left:0}.header-flight strong{font-size:9px}.left-rail,.right-rail,.rail-handle{top:113px!important}.map-toolbar{top:165px!important}}

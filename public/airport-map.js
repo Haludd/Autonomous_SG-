@@ -2,6 +2,8 @@ import {createAirportGeometry} from '/airport-geometry.mjs';
 import {aircraftAt,recoveryArrivalAt,standIntervals} from '/jfk-replay.mjs';
 
 const $=id=>document.getElementById(id);
+const embedded=window.parent!==window;
+document.documentElement.classList.toggle('embedded-map',embedded);
 const esc=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const L=window.L;
 const map=L.map('geo-map',{zoomControl:false,attributionControl:false,minZoom:3,maxZoom:19,zoomSnap:.25});
@@ -28,7 +30,10 @@ function time(value=minute,seconds=false){
 function mapStatus(text){
   const coverage=airport?.gateCoverage;
   const missing=coverage?.unmappedStandIds.length;
-  $('basemap-status').textContent=text+(missing?` · ${coverage.mappedStandCount}/${coverage.totalStandCount} scenario gates mapped; ${missing} hidden`:'');
+  const status=text+(missing?` · ${coverage.mappedStandCount}/${coverage.totalStandCount} scenario gates mapped; ${missing} hidden`:'');
+  if($('basemap-status').textContent===status)return;
+  $('basemap-status').textContent=status;
+  if(embedded)window.parent.postMessage({type:'clearance:basemap-status',text:status},location.origin);
 }
 const gateName=gate=>gate.ref?`Gate ${gate.ref}`:gate.name||'Mapped gate';
 function gateDescription(gate){return `${gateName(gate)}${gate.terminal?` · terminal ${gate.terminal}`:''}. Source passenger gate at ${gate.latitude.toFixed(6)}, ${gate.longitude.toFixed(6)}. Occupancy and flight assignments are simulated.`;}
@@ -174,8 +179,11 @@ $('zoomIn').onclick=()=>map.zoomIn();$('zoomOut').onclick=()=>map.zoomOut();$('z
 function setStreet(value){
   streetMode=value;$('street-mode').setAttribute('aria-pressed',String(value));$('outline-mode').setAttribute('aria-pressed',String(!value));
   if(value){tiles.addTo(map);mapStatus(`${airport?.code??''} · geographic street map`);}else{map.removeLayer(tiles);mapStatus(`${airport?.code??''} · local runway outlines · no street tiles`);}
+  $('map-layers').open=false;
 }
 $('street-mode').onclick=()=>setStreet(true);$('outline-mode').onclick=()=>setStreet(false);
+document.addEventListener('pointerdown',event=>{if(!$('map-layers').contains(event.target))$('map-layers').open=false;},{capture:true});
+document.addEventListener('keydown',event=>{if(event.key==='Escape'&&$('map-layers').open){$('map-layers').open=false;$('map-layers').querySelector('summary').focus();}});
 document.addEventListener('keydown',event=>{if(event.key.toLowerCase()==='m'&&!event.ctrlKey&&!event.metaKey&&!event.altKey&&!event.target.closest('input,select,textarea')){event.preventDefault();send('clearance:map-only');}});
 function frame(now){
   const elapsed=Math.min(.1,(now-lastFrame)/1000);lastFrame=now;

@@ -26,14 +26,14 @@
     <a class="brand" href="/" aria-label="Clearance recovery map"><img src="/favicon.svg?v=tower" alt="">clearance<b>.</b><span class="brand-caption">AIRPORT RECOVERY</span></a>
     <div class="airport-picker"><label for="airport-select">AIRPORT MAP</label><select id="airport-select" aria-label="Airport map"><option value="JFK">JFK · New York</option></select></div>
     <div class="header-flight"><span class="kicker" id="airport-kicker">JFK / RECOVERY DESK</span><strong id="flight-label">Loading historical flight…</strong><span id="source-label"></span></div>
+    <div class="workspace-views" role="group" aria-label="Workspace view"><button id="view-airfield" data-view="airfield" aria-pressed="true" aria-controls="conversation-view" title="Airfield map">Map</button><button id="view-conversation" data-view="conversation" aria-pressed="false" aria-controls="conversation-view" title="Agent conversation">Agent chat</button></div>
     <div class="header-actions"><span class="engine-badge" id="engine-label"><i></i><span id="engine-name">LOCAL POLICY AGENTS</span></span><div class="actions"><button class="secondary export-button" id="export" disabled><svg class="icon" aria-hidden="true"><use href="#icon-download"/></svg><span>Export audit</span></button><button class="primary" id="compare" disabled>Evaluate three plans</button></div></div>
   </header>
 
   <main class="workspace-grid">
     <section class="map-section" id="map-section" aria-label="JFK recovery map">
       <iframe id="recovery-map-frame" class="map-frame" src="/airport-map.html" title="Selected airport geographic map and recovery preview" sandbox="allow-scripts allow-same-origin"></iframe>
-      <div class="workspace-views" role="group" aria-label="Workspace view"><button id="view-airfield" data-view="airfield" aria-pressed="true" aria-controls="conversation-view">Airfield map</button><button id="view-conversation" data-view="conversation" aria-pressed="false" aria-controls="conversation-view">Agent conversation</button></div>
-      <div class="map-toolbar"><div class="map-tabs" id="map-tabs" aria-label="Map preview options"></div><small id="map-status">JFK AIRFIELD · AWAITING EVALUATION</small></div>
+      <div class="map-toolbar"><div class="map-tabs" id="map-tabs" aria-label="Map preview options"></div></div>
       <section id="conversation-view" class="conversation-view widget" aria-label="Agent conversation" hidden></section>
       <div class="map-welcome" id="map-empty"><span class="map-welcome-dot"></span><span><span id="map-empty-code">JFK</span> recovery workspace <small id="map-empty-copy">Evaluate three plans to preview routes and timing.</small></span></div>
     </section>
@@ -75,7 +75,7 @@
     <button data-open-panel="agents" id="dock-agents" aria-controls="inspector-panel" aria-pressed="true"><svg class="icon" aria-hidden="true"><use href="#icon-agents"/></svg><span>Agents</span></button>
     <button data-open-panel="log" id="dock-log" aria-controls="inspector-panel" aria-pressed="false"><svg class="icon" aria-hidden="true"><use href="#icon-log"/></svg><span>Decision log</span></button>
   </nav>
-  <footer class="bottom"><span><i class="connection-dot"></i><span id="coordination-label">JFK surface coordination</span></span><span>Geographic map · simulated movements</span><span id="selection-footer">No plan selected</span></footer>
+  <footer class="bottom"><span class="desk-status"><i class="connection-dot"></i><span id="coordination-label">JFK surface coordination</span><small id="map-status" role="status">JFK · AWAITING EVALUATION</small></span><span id="map-context-status">Geographic map · simulated movements</span><span id="selection-footer">No plan selected</span></footer>
   <div id="toast" class="toast" role="status" aria-live="polite"></div>
   <script type="module" src="/recovery.js"></script>
 </body>

@@ -22,10 +22,16 @@
     </header>
     <div class="main"><div class="mapwrap">
       <div id="geo-map" aria-label="Geographic airport map"></div>
-      <div class="geographic-mode"><div class="seg" aria-label="Map background"><button id="street-mode" aria-pressed="true">Airport map</button><button id="outline-mode" aria-pressed="false">Runway outline</button></div><span id="basemap-status">Loading airport…</span></div>
       <div class="legend"><span style="--c:var(--twr)"><i></i>ATC</span><span style="--c:var(--gnd)"><i></i>Ground</span><span style="--c:var(--sen)"><i></i>Pilot</span><span>Mapped gates · illustrative taxi paths</span></div>
       <div class="info" id="info" hidden></div>
-      <div class="map-tools"><button class="btn" id="zoomIn" aria-label="Zoom in">+</button><button class="btn" id="zoomOut" aria-label="Zoom out">−</button><button class="btn" id="zoomFit" aria-label="Fit airport">Fit</button></div>
+      <div class="map-tools">
+        <button class="btn" id="zoomIn" aria-label="Zoom in">+</button><button class="btn" id="zoomOut" aria-label="Zoom out">−</button><button class="btn" id="zoomFit" aria-label="Fit airport">Fit</button>
+        <details class="map-layers" id="map-layers">
+          <summary class="btn" aria-label="Map layers" title="Map layers" aria-controls="map-background-options"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round" aria-hidden="true"><path d="m12 3 9 5-9 5-9-5 9-5Zm-9 9 9 5 9-5M3 16l9 5 9-5"/></svg></summary>
+          <div class="geographic-mode" id="map-background-options"><strong>Map layers</strong><div class="seg" role="group" aria-label="Map background"><button id="street-mode" aria-pressed="true">Airport map</button><button id="outline-mode" aria-pressed="false">Runway outline</button></div></div>
+        </details>
+      </div>
+      <span id="basemap-status" role="status">Loading airport…</span>
       <div class="replay"><button class="btn" id="rewind" title="Return to start" aria-label="Return replay to start">↺</button><span id="replayClock">14:00</span><input id="replayTime" aria-label="Plan replay time" type="range" min="0" max="90" step="0.1" value="0" disabled><span id="replayEnd">15:30</span><span class="replay-note">REPLAY ONLY</span></div>
       <div class="map-attribution"><a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">© OpenStreetMap contributors</a> · <a href="https://ourairports.com/data/" target="_blank" rel="noopener">Runways: OurAirports</a><span id="map-source-note"></span></div>
     </div></div>

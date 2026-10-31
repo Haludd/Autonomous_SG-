@@ -2,10 +2,11 @@
 #agent-progress:not(:empty){margin-bottom:14px;padding:10px;border:1px solid var(--line);border-radius:8px;background:var(--panel2);font-size:11px;line-height:1.8}
 #agent-progress p{margin:2px 0}#agent-config{overflow-wrap:anywhere;font-size:10px;line-height:1.8;color:var(--muted)}
 .live-message{padding:10px 0;border-bottom:1px solid var(--line);font-size:11px;line-height:1.7}
-.workspace-views{position:absolute;z-index:4;top:244px;left:50%;transform:translateX(-50%);display:flex;gap:4px;padding:4px;background:#0e1821ef;border:1px solid #304454;border-radius:10px;box-shadow:0 4px 16px #0004}
-.workspace-views button{background:transparent;color:var(--muted);font:10px var(--mono);padding:8px 12px;border:1px solid transparent;border-radius:6px;min-height:32px;white-space:nowrap}
+.workspace-views{display:flex;flex-shrink:0;gap:3px;padding:3px;background:#0e1821ef;border:1px solid #304454;border-radius:8px}
+.workspace-views button{background:transparent;color:var(--muted);font:10px var(--mono);padding:7px 10px;border:1px solid transparent;border-radius:5px;min-height:30px;white-space:nowrap}
 .workspace-views button[aria-pressed=true]{background:#193541;border-color:#346773;color:var(--ground)}
-.conversation-view{position:absolute;z-index:3;top:292px;bottom:112px;left:calc(var(--left-width) + var(--edge)*2);right:calc(var(--right-width) + var(--edge)*2);min-height:0;overflow:auto;padding:22px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.conversation-view{position:absolute;z-index:3;top:94px;bottom:112px;left:calc(var(--left-width) + var(--edge)*2);right:calc(var(--right-width) + var(--edge)*2);min-height:0;overflow:auto;padding:22px;scrollbar-width:thin;scrollbar-color:var(--line) transparent}
+.map-section:has(.map-tabs:not(:empty)) .conversation-view{top:148px}
 .conversation-view[hidden]{display:none}
 .left-panel-hidden .conversation-view{left:var(--edge)}.right-panel-hidden .conversation-view{right:var(--edge)}
 .show-conversation #map-empty{visibility:hidden}
@@ -32,5 +33,6 @@
 .relay-hub{width:min(290px,100%);margin:auto;padding:15px 12px;text-align:center;border:1px solid var(--line);border-radius:6px;background:var(--panel2)}.relay-hub strong{display:block;font-size:15px;font-weight:500;line-height:1.6}.relay-hub span{display:block;font-size:12px;color:var(--muted);line-height:1.7;margin-top:3px}.relay-diagram>svg{height:70px;min-height:70px;max-height:70px}.relay-count{text-align:center;font-size:12px;color:var(--muted);line-height:1.6}.relay-line{vector-effect:non-scaling-stroke}
 
 @media(max-width:1500px){.speaker-grid{grid-template-columns:1fr}.conversation-heading{flex-direction:column}}
-@media(max-width:900px){.workspace-views{top:300px}.conversation-view{top:348px;left:var(--edge);right:var(--edge);bottom:108px}}
-@media(max-width:600px){.conversation-view{padding:16px}.conversation-heading h2{font-size:19px}.conversation-heading label{width:100%}.conversation-heading select{max-width:none;width:100%;min-height:44px}.speaker-grid{gap:24px}.workspace-views button{font-size:9px;padding:7px 9px}.heard summary,.conversation-help summary{min-height:40px;display:flex;align-items:center}}
+@media(max-width:900px){.workspace-header{gap:10px}.workspace-views button{font-size:9px;padding:7px 8px}.conversation-view{left:var(--edge);right:var(--edge);bottom:108px}.map-section:has(.map-tabs:not(:empty)) .conversation-view{top:204px}}
+@media(max-width:760px){.workspace-header{height:108px;flex-wrap:wrap;align-content:flex-start;padding:12px 14px 16px;gap:9px 12px}.workspace-header .header-flight{display:none}.workspace-header .airport-picker{order:3;flex:1;min-width:0;max-width:none}.airport-picker label{display:none}.workspace-views{order:4}.left-rail,.right-rail,.rail-handle{top:113px}.map-toolbar{top:165px}.conversation-view{top:113px}.map-section:has(.map-tabs:not(:empty)) .conversation-view{top:215px}}
+@media(max-width:600px){.workspace-header .header-flight{display:none}.workspace-header .airport-picker{max-width:none}.workspace-views{order:4}.workspace-views button{font-size:9px;padding:7px 9px}.conversation-view{top:113px;padding:16px}.map-section:has(.map-tabs:not(:empty)) .conversation-view{top:215px}.conversation-heading h2{font-size:19px}.conversation-heading label{width:100%}.conversation-heading select{max-width:none;width:100%;min-height:44px}.speaker-grid{gap:24px}.heard summary,.conversation-help summary{min-height:40px;display:flex;align-items:center}}
