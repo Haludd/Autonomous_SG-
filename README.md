@@ -26,6 +26,7 @@ Open http://127.0.0.1:4173. On this Mac, `start.command` also locates the bundle
 6. In **Scenario inputs**, make G7–G9 unavailable. Old options and human choice are cleared. Re-evaluate: after three turns with no unanimity, deterministic fallback recommends the validated resequencing plan. The spare-gate option is blocked.
 7. With spare gates unavailable, set assumed arrival fuel to 1,500 kg. No option is hard-valid; selection is disabled and the UI requests human review.
 8. **Test timeout fallback** bypasses agent messages. No acceptance count or efficiency assessment is fabricated. Export the JSON audit for source facts, assumptions, comparisons, hashes, agent messages and human selection.
+9. Open **Inputs**, enable **Stress test: overlap up to three other arrivals**, then evaluate again. The **Chain collisions** widget below the option cards shows priority tiers, serving order and knock-on effects for the current preview. Changing airports resets the stress test. For a naturally overlapping JFK example, select B6 717 in the historical-flight picker.
 
 ## Historical data and constraints
 
@@ -50,7 +51,7 @@ python3 src/build-data.py
 The CSV has no current gates, complete airport traffic, aircraft type, onboard fuel or crew report times. The scenario therefore declares these assumptions in the interface and audit:
 
 - One historical arrival is surrounded by six synthetic departures and synthetic background runway demand. Background gate occupancy represents the rest of the airport; the delayed-only dataset cannot reconstruct unaffected flights.
-- In the default JFK example, G1 is occupied until minute 44. G7–G9 are spare. Airports with two workbook spares use G7–G8. Resequencing two departures releases G1 at minute 34. Gate aliases and their map positions are simulated.
+- In the default JFK example, G1 is occupied until minute 44. G7–G9 are spare. Airports with two workbook spares use G7–G8. Resequencing two departures releases G1 at minute 34. Gate aliases and assignments are simulated; available map anchors use source gate coordinates.
 - The target uses an assumed narrowbody/Large wake class and 6,000 kg trip fuel. Workbook holding burn is 2,400 kg/hour. The 45-minute spare arrival allowance includes the protected 30-minute final reserve. The 5% trip-fuel contingency is carried separately and protected. Default arrival fuel is 2,100 kg, with 1,500 kg protected and 600 kg discretionary.
 - Target crew has worked 690 minutes at decision time and is assumed to operate the onward departure. Ground crew has worked 410 minutes. Turnaround takes the airport’s workbook minimum (35 or 45 minutes), followed by six minutes for onward pushback/taxi. Overtime is allowed and costs 1.5 times a normalized wage per minute.
 - Active runway allocation, background traffic, four minutes of arrival taxi, departure fuel/tug assumptions and gate aliases are simulated. Capacity is enforced over rolling 60-minute windows across modeled background, arrivals and departures.
@@ -62,7 +63,7 @@ The recovery desk currently uses **three separate local policy agents; it makes 
 
 Each turn contains exactly one structured message per role covering all three options. Turn one supplies preferences and assessments. The next turn shares peer preferences and confirms the same option hashes. An option has consensus only when all three accept its exact plan and scenario identity. The default completes in two turns (six messages). Runs stop after three turns (nine messages).
 
-Hard validity takes precedence in ranking. Valid options then rank by ACCEPT count, lowest agent score, mean score, arrival delay and stable ID. Preference acceptance requires a score of at least 70/100:
+Hard validity takes precedence in ranking. Valid options then rank by fewer stranded chained arrivals, ACCEPT count, lowest agent score, mean score, knock-on cost to other chained arrivals, arrival delay and stable ID. Preference acceptance requires a score of at least 70/100:
 
 - ATC: max(0, 100 − 2 × arrival delay minutes − 14 × resequenced departures).
 - Pilot: max(0, 100 − 4 × holding minutes).
@@ -70,7 +71,19 @@ Hard validity takes precedence in ranking. Valid options then rank by ACCEPT cou
 
 The weights and threshold are disclosed application choices, not organizer constraints. A hard breach produces VETO regardless of efficiency. A preference objection produces COUNTER while keeping a hard-valid alternative available to the human. Consensus applies to the recommended option, not automatically to every alternative.
 
-After three turns with no consensus, a deterministic fallback minimizes arrival delay + holding fuel / 40 + 4 × gate changes + 3 × resequenced departures + 2 × overtime. It chooses only from validated options. Failure means none of these three strategies yielded a valid option; it is not a proof of global infeasibility or optimality.
+After three turns with no consensus, a deterministic fallback minimizes arrival delay + holding fuel / 40 + 4 × gate changes + 3 × resequenced departures + 2 × overtime + knock-on cost to other chained arrivals. It chooses only from validated options. Failure means none of these three strategies yielded a valid option; it is not a proof of global infeasibility or optimality.
+
+## Chain collisions and triage
+
+Each recovery evaluation screens competing claims on spare gates, arrival slots and onward departures among the selected airport’s indexed historical arrivals. Chains follow overlapping claim windows transitively, rather than placing flights in fixed hour buckets. Airport selection scopes the candidate pool, capacity, turnaround rules and same-tail onward links. The default JFK flight has no natural chain; B6 717 and B6 584 share one.
+
+The urgency policy uses five ordered tiers: exhausted discretionary fuel, urgent fuel, urgent crew margin, spare-gate need and routine. Fuel and crew margins are scenario assumptions, not measured historical aircraft facts. Within each tier, least slack and then earliest ETA decide urgency. The search compares tier-preserving serving orders for up to six flights. Each flight takes its cheapest available option given prior claims; total cost includes slipped slots and delay passed to an indexed same-tail onward departure. Larger chains disclose the full count and that only six flights were searched.
+
+Per-option cards and the inspector show serving position and knock-on cost. The Chain collisions widget expands the priority list, serving order, effects and disclosed policy. A stranded chained arrival prevents unanimous consensus and affects ranking. Chain results are a system check alongside the three agents. Human selection and JSON exports retain the selected option’s chain impact, and plan identity includes the session’s stress setting and chain source rows.
+
+The optional stress test re-times up to three other historical arrivals from the same airport to 1–3 minutes after the selected flight. The collision is synthetic. Fuel, crew and occupancy remain simulated. It does not modify the geographic map, source gate anchors, panel controls or selected airport.
+
+The chain screen pools spare gates and uses one-minute arrival and onward slot bins. These are disclosed contention heuristics; they do not form a joint wake-validated operational schedule. The normal per-option hard checks still apply. Only indexed delayed arrivals participate, so a chain-free result does not describe all airport traffic. `data/onward-index.json` traces the earliest later same-tail departure at each arrival airport on the same date; links are partial because the CSV omits unaffected flights. Re-run `python3 src/build-data.py` after rebuilding the airport catalog to refresh these links for all indexed examples.
 
 ## Human choice and audit
 
@@ -115,6 +128,9 @@ node --test test/*.test.mjs
 Tests cover domain checks, exactly three messages per turn, independent acceptance/ranking, fuel/notice boundaries, fallback, blocked selections, scenario-bound hashes, source provenance, HTTP exports, and replay boundaries. Airport tests cover all 322 coordinate records, all 9,075 historical examples, recommendations for every airport with eligible arrivals, small-airport limits, absent arrival seeds, cross-airport plan invalidation, geographic projection and runway identifier normalization.
 
 - `src/recovery.mjs`: workbook-backed scenario, three strategies, validator, role agents, ranking, fallback and human-choice validation.
+- `src/chain.mjs`, `src/triage.mjs`: airport-scoped chain screening, serving order and urgency tiers.
+- `public/collision-triage.css`: additive collision-widget styles; the existing map and panel stylesheet is preserved.
+- `data/onward-index.json`: traceable partial onward-flight links for indexed arrivals.
 - `src/build-data.py`: reproducible extraction/indexing of original inputs.
 - `src/build-airport-catalog.py`, `src/build-gate-catalog.py`, `src/airports.mjs`: geographic catalogs and airport data access.
 - `src/server.mjs`: loopback API and static files.

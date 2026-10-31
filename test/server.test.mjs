@@ -80,3 +80,28 @@ test('airport catalog, per-airport examples and geographic map assets are served
  const html=await fetch(origin+'/airport-map.html');assert.match(html.headers.get('content-security-policy'),/https:\/\/tile.openstreetmap.org/);assert.match(html.headers.get('content-security-policy'),/frame-ancestors 'self'/);
  const home=await fetch(origin+'/');assert.ok(!home.headers.get('content-security-policy').includes('tile.openstreetmap.org'));
 });
+
+test('collision evaluation retains chain impact in previews, selection and audit exports',async()=>{
+ const solo=await(await post('/api/recovery',{index:0})).json();assert.equal(solo.chain,null);
+ const created=await(await post('/api/recovery',{index:36})).json();
+ assert.deepEqual(created.chain.group.map(g=>g.id),['B6 717','B6 584']);assert.equal(created.chain.group.filter(g=>g.self).length,1);
+ const result=await(await post(`/api/recovery/${created.id}/compare`,{})).json();
+ for(const option of result.portfolio.options){assert.equal(option.chain.groupSize,2);assert.ok(option.chain.effects.some(effect=>effect.startsWith('B6 717: passes')));}
+ assert.match(result.portfolio.events.at(-1).explanation,/Chain check/);
+ const option=result.portfolio.options[0];
+ const chosen=await(await post(`/api/recovery/${created.id}/choose`,{optionId:option.id,planHash:option.hash,stateVersion:1})).json();assert.deepEqual(chosen.selection.chain,option.chain);
+ const audit=await(await fetch(`${origin}/api/recovery/${created.id}/export`)).json();assert.deepEqual(audit.selection.chain,option.chain);assert.equal(audit.chain.airportCode,'JFK');
+});
+
+test('collision stress mode is airport-scoped and invalidates old plan hashes',async()=>{
+ const base=await(await post('/api/recovery',{airportCode:'LAX',index:0})).json();
+ const old=await(await post(`/api/recovery/${base.id}/compare`,{})).json();
+ const stress=await(await post('/api/recovery',{airportCode:'LAX',index:0,stress:true})).json();
+ assert.equal(stress.chain.airportCode,'LAX');assert.ok(stress.chain.group.every(g=>g.airportCode==='LAX'));assert.equal(stress.chain.group.filter(g=>g.retimed).length,3);
+ assert.match(stress.chain.note,/not a historical event/);assert.match(stress.chain.note,/simulated/);
+ const result=await(await post(`/api/recovery/${stress.id}/compare`,{})).json();
+ assert.ok(result.portfolio.options.some(option=>option.chain));assert.equal(result.scenario.mapData.code,'LAX');
+ const stale=old.portfolio.options[0];assert.equal((await post(`/api/recovery/${stress.id}/choose`,{optionId:stale.id,planHash:stale.hash,stateVersion:1})).status,400);
+ const html=await(await fetch(origin+'/')).text();assert.match(html,/id="stress-chain"/);assert.match(html,/id="collisions"/);assert.match(html,/id="airport-select"/);assert.match(html,/id="expand"/);
+ assert.equal((await fetch(origin+'/collision-triage.css')).status,200);
+});

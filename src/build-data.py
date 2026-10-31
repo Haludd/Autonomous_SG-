@@ -40,11 +40,14 @@ tables['source'] = {'filename': workbook.name, 'sha256': hashlib.sha256(workbook
 
 flights = ROOT / 'data/flights.csv'
 records, total, qualifying = [], 0, 0
+departures = {}
 with flights.open(newline='') as f:
     for source_row, row in enumerate(csv.DictReader(f), 2):
         total += 1
         matches = float(row.get('WEATHER_DELAY') or 0) > 15 or float(row.get('LATE_AIRCRAFT_DELAY') or 0) > 20
         qualifying += matches
+        if row['CANCELLED'] == '0' and row['TAIL_NUMBER']:
+            departures.setdefault((row['ORIGIN_AIRPORT'], row['TAIL_NUMBER'], row['YEAR'], row['MONTH'], row['DAY']), []).append({'sourceRow': source_row, **{k: row[k] for k in ['AIRLINE', 'FLIGHT_NUMBER', 'ORIGIN_AIRPORT', 'DESTINATION_AIRPORT', 'SCHEDULED_DEPARTURE', 'LATE_AIRCRAFT_DELAY']}})
         if matches and row['DESTINATION_AIRPORT'] == 'JFK' and row['CANCELLED'] == '0' and row['DIVERTED'] == '0':
             records.append({'sourceRow': source_row, 'record': row})
 
@@ -58,4 +61,16 @@ def example_order(item):
 records.sort(key=example_order)
 index = {'totalRows': total, 'qualifyingRows': qualifying, 'jfkArrivalCount': len(records), 'sha256': hashlib.sha256(flights.read_bytes()).hexdigest(), 'sourceUrl': SOURCE_URL, 'records': records[:100]}
 (ROOT / 'data/flights-index.json').write_text(json.dumps(index, indent=2))
+# Same-aircraft knock-on at each indexed airport. The delayed-only CSV provides partial links.
+onward = {}
+samples = {item['sourceRow']: item for item in records[:100]}
+airport_catalog = ROOT / 'data/airport-catalog.json'
+if airport_catalog.exists():
+    for airport in json.loads(airport_catalog.read_text())['airports']:
+        samples.update({item['sourceRow']: item for item in airport['records']})
+for item in samples.values():
+    row = item['record']
+    later = [d for d in departures.get((row['DESTINATION_AIRPORT'], row['TAIL_NUMBER'], row['YEAR'], row['MONTH'], row['DAY']), []) if int(d['SCHEDULED_DEPARTURE']) >= int(row['SCHEDULED_ARRIVAL'])]
+    onward[str(item['sourceRow'])] = min(later, key=lambda d: (int(d['SCHEDULED_DEPARTURE']), d['sourceRow'])) if later else None
+(ROOT / 'data/onward-index.json').write_text(json.dumps({'note': 'Earliest later departure at the arrival airport on the same tail and date. Partial: the source CSV lists delayed flights only.', 'flightDatasetSha256': index['sha256'], 'onward': onward}, separators=(',', ':')) + '\n')
 print(f'{total:,} records; {qualifying:,} qualifying; {len(records):,} JFK arrivals; 100 indexed examples.')
