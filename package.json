@@ -1,0 +1,9 @@
+{
+  "name": "clearance-airport-coordination",
+  "version": "0.3.0",
+  "private": true,
+  "type": "module",
+  "description": "A constraint-checked airport disruption negotiation prototype",
+  "scripts": { "start": "node src/server.mjs", "test": "node --test test/*.test.mjs", "benchmark": "node src/benchmark.mjs" },
+  "engines": { "node": ">=22" }
+}

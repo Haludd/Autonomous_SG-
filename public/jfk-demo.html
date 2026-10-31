@@ -1,0 +1,75 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><link rel="stylesheet" href="/jfk-base.css"><link rel="stylesheet" href="/jfk-connected.css"></head><body>
+<title>JFK Airfield Agents</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+
+
+
+
+
+<div class="app">
+  <header>
+    <div class="brand"><span class="loc">KJFK</span><h1>Original airfield demo <span>· local policy simulation</span></h1></div>
+    <div class="clock"><span id="clock">06:40:00</span><span class="cfg">Standalone simulation · not a Clearance plan · no LLM calls</span></div>
+    <div class="controls">
+      <button class="btn" id="play" type="button">Pause</button>
+      <div class="seg" role="group" aria-label="Simulation speed">
+        <button type="button" data-sp="1" aria-pressed="true">1×</button>
+        <button type="button" data-sp="2" aria-pressed="false">2×</button>
+        <button type="button" data-sp="4" aria-pressed="false">4×</button>
+      </div>
+      <button class="btn twr" id="surge" type="button">Surge arrivals</button>
+      <button class="btn warn" id="inject" type="button">Inject runway incursion</button>
+      <label class="tog"><input type="checkbox" id="ovRoutes" checked><span>Routes</span></label>
+      <label class="tog"><input type="checkbox" id="ovPred" checked><span>Predictions</span></label>
+      <label class="tog"><input type="checkbox" id="ovLabels" checked><span>Labels</span></label>
+    </div>
+  </header>
+
+  <div class="main">
+    <div class="mapwrap">
+      <svg id="map" viewBox="0 0 1200 800" preserveAspectRatio="xMidYMid meet" aria-label="JFK airfield with live aircraft">
+        <g id="static"></g>
+        <g id="gLocks"></g>
+        <g id="gRoutes"></g>
+        <g id="gPred"></g>
+        <g id="gConf"></g>
+        <g id="gPlanes"></g>
+      </svg>
+      <div class="legend">
+        <span style="--c:var(--twr)"><i></i>Tower · runways</span>
+        <span style="--c:var(--gnd)"><i></i>Ground · taxi</span>
+        <span style="--c:var(--sen)"><i></i>Sentinel · 4 s prediction</span>
+        <span style="--c:var(--alert)"><i></i>Conflict</span>
+      </div>
+      <div class="info" id="info" hidden></div>
+      <div class="hint">Click an aircraft to follow it</div>
+    </div>
+
+    <aside>
+      <section>
+        <h2>Agents</h2>
+        <div class="agents">
+          <div class="agent" id="agTWR" style="--c:var(--twr)"><i></i><b>TOWER<small>runway clearances &amp; sequencing</small></b><span class="n" id="nTWR">0 msg</span><span class="live" id="lTWR">–</span></div>
+          <div class="agent" id="agGND" style="--c:var(--gnd)"><i></i><b>GROUND<small>gates, pushback, taxi routing</small></b><span class="n" id="nGND">0 msg</span><span class="live" id="lGND">–</span></div>
+          <div class="agent" id="agSEN" style="--c:var(--sen)"><i></i><b>SENTINEL<small>conflict prediction &amp; incursions</small></b><span class="n" id="nSEN">0 msg</span><span class="live" id="lSEN">–</span></div>
+        </div>
+      </section>
+      <section>
+        <h2>Runways</h2>
+        <div class="rwys" id="rwys"></div>
+      </section>
+      <section>
+        <h2>Flight strips</h2>
+        <table class="strips"><tbody id="strips"></tbody></table>
+      </section>
+      <section>
+        <h2>Agent log</h2>
+        <ol class="log" id="log"></ol>
+      </section>
+    </aside>
+  </div>
+</div>
+
+
+
+<script src="/jfk-demo.js"></script></body></html>
